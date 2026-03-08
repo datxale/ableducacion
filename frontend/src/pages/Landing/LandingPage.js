@@ -1,12 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
   Typography,
   Button,
   Grid,
-  Card,
-  CardContent,
   Rating,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
@@ -67,8 +65,18 @@ const steps = [
   },
 ];
 
+const allTestimonials = [mainTestimonial, ...testimonials];
+
 const LandingPage = () => {
   const navigate = useNavigate();
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % allTestimonials.length);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <Box sx={{ overflowX: 'hidden', fontFamily: "'Nunito', sans-serif" }}>
@@ -247,96 +255,87 @@ const LandingPage = () => {
       </Box>
 
       {/* ═══════════════════════════════════════════
-          TESTIMONIALS SECTION
+          TESTIMONIALS SLIDER
           ═══════════════════════════════════════════ */}
       <Box sx={{ py: { xs: 8, md: 12 }, background: '#FFF9EC' }}>
-        <Container maxWidth="md">
-          {/* Featured testimonial */}
-          <Box sx={{ textAlign: 'center', mb: 8 }}>
-            <Typography
-              variant="h3"
-              sx={{
-                fontWeight: 800,
-                fontSize: { xs: '1.8rem', md: '2.5rem' },
-                lineHeight: 1.3,
-                mb: 2,
-                fontStyle: 'italic',
-                color: '#1a1a2e',
-              }}
-            >
-              &ldquo;
-              <Box component="span" sx={{ color: '#4ECDC4', fontWeight: 900 }}>
-                ABL
-              </Box>{' '}
-              <Box component="span" sx={{ color: '#FF6B6B', fontWeight: 900 }}>
-                Educación
-              </Box>{' '}
-              {mainTestimonial.quote.replace('ABL Educación ', '')}&rdquo;
-            </Typography>
-            <Rating
-              value={mainTestimonial.rating}
-              readOnly
-              sx={{ mb: 1, '& .MuiRating-icon': { color: '#FFD93D' } }}
-            />
-            <Typography variant="body1" color="text.secondary" sx={{ fontWeight: 600 }}>
-              {mainTestimonial.role}
-            </Typography>
-          </Box>
-
-          {/* 3 testimonial cards */}
-          <Grid container spacing={3}>
-            {testimonials.map((t, i) => (
-              <Grid item xs={12} md={4} key={i}>
-                <Card
-                  elevation={0}
+        <Container maxWidth="sm">
+          <Box
+            sx={{
+              position: 'relative',
+              overflow: 'hidden',
+              minHeight: { xs: 280, md: 320 },
+            }}
+          >
+            {allTestimonials.map((t, i) => (
+              <Box
+                key={i}
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  opacity: currentSlide === i ? 1 : 0,
+                  transform: currentSlide === i ? 'translateX(0)' : 'translateX(60px)',
+                  transition: 'opacity 0.6s ease, transform 0.6s ease',
+                  pointerEvents: currentSlide === i ? 'auto' : 'none',
+                }}
+              >
+                <Box
                   sx={{
-                    height: '100%',
                     background: '#fff',
-                    borderRadius: '20px',
-                    border: '1px solid rgba(0,0,0,0.06)',
+                    borderRadius: '24px',
+                    p: { xs: 3, md: 5 },
                     textAlign: 'center',
-                    transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-                    '&:hover': {
-                      transform: 'translateY(-4px)',
-                      boxShadow: '0 12px 40px rgba(0,0,0,0.08)',
-                    },
+                    boxShadow: '0 8px 40px rgba(0,0,0,0.06)',
+                    border: '1px solid rgba(0,0,0,0.04)',
                   }}
                 >
-                  <CardContent sx={{ p: 3 }}>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        mb: 2,
-                        lineHeight: 1.7,
-                        color: 'text.secondary',
-                        fontStyle: 'italic',
-                        fontSize: '0.9rem',
-                      }}
-                    >
-                      &ldquo;{t.quote}&rdquo;
-                    </Typography>
-                    <Rating
-                      value={t.rating}
-                      readOnly
-                      size="small"
-                      sx={{ mb: 1, '& .MuiRating-icon': { color: '#FFD93D' } }}
-                    />
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        display: 'block',
-                        fontWeight: 700,
-                        color: 'text.primary',
-                        fontSize: '0.8rem',
-                      }}
-                    >
-                      {t.role}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      fontWeight: 700,
+                      fontSize: { xs: '1.1rem', md: '1.4rem' },
+                      lineHeight: 1.6,
+                      mb: 3,
+                      fontStyle: 'italic',
+                      color: '#1a1a2e',
+                    }}
+                  >
+                    &ldquo;{t.quote}&rdquo;
+                  </Typography>
+                  <Rating
+                    value={t.rating}
+                    readOnly
+                    sx={{ mb: 1.5, '& .MuiRating-icon': { color: '#FFD93D' } }}
+                  />
+                  <Typography
+                    variant="body2"
+                    sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.9rem' }}
+                  >
+                    {t.role}
+                  </Typography>
+                </Box>
+              </Box>
             ))}
-          </Grid>
+          </Box>
+
+          {/* Dots indicator */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 4 }}>
+            {allTestimonials.map((_, i) => (
+              <Box
+                key={i}
+                onClick={() => setCurrentSlide(i)}
+                sx={{
+                  width: currentSlide === i ? 28 : 10,
+                  height: 10,
+                  borderRadius: '5px',
+                  background: currentSlide === i ? '#2B7DE9' : 'rgba(0,0,0,0.15)',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                }}
+              />
+            ))}
+          </Box>
         </Container>
       </Box>
 
