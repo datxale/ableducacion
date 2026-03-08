@@ -10,7 +10,6 @@ export const AuthProvider = ({ children }) => {
 
   const logout = useCallback(() => {
     localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
     setUser(null);
   }, []);
@@ -32,19 +31,12 @@ export const AuthProvider = ({ children }) => {
     loadUserFromStorage();
   }, [loadUserFromStorage]);
 
-  const login = async (username, password) => {
+  const login = async (email, password) => {
     setError(null);
     try {
-      const response = await axiosInstance.post('/token/', { username, password });
-      const { access, refresh } = response.data;
-      localStorage.setItem('access_token', access);
-      localStorage.setItem('refresh_token', refresh);
-
-      // Fetch user profile
-      const profileResponse = await axiosInstance.get('/users/me/', {
-        headers: { Authorization: `Bearer ${access}` },
-      });
-      const userData = profileResponse.data;
+      const response = await axiosInstance.post('/auth/login', { email, password });
+      const { access_token, user: userData } = response.data;
+      localStorage.setItem('access_token', access_token);
       localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
       return { success: true, user: userData };
@@ -58,19 +50,10 @@ export const AuthProvider = ({ children }) => {
   const register = async (formData) => {
     setError(null);
     try {
-      const response = await axiosInstance.post('/users/register/', formData);
+      const response = await axiosInstance.post('/auth/register', formData);
       return { success: true, data: response.data };
     } catch (err) {
-      const data = err.response?.data;
-      let msg = 'Error al registrarse. Intenta de nuevo.';
-      if (data) {
-        const firstKey = Object.keys(data)[0];
-        if (Array.isArray(data[firstKey])) {
-          msg = data[firstKey][0];
-        } else if (typeof data[firstKey] === 'string') {
-          msg = data[firstKey];
-        }
-      }
+      const msg = err.response?.data?.detail || 'Error al registrarse. Intenta de nuevo.';
       setError(msg);
       return { success: false, error: msg };
     }
@@ -82,7 +65,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('user', JSON.stringify(newUser));
   };
 
-  const isAdmin = user?.role === 'admin' || user?.is_staff === true;
+  const isAdmin = user?.role === 'admin';
   const isDocente = user?.role === 'docente';
   const isEstudiante = user?.role === 'estudiante';
 

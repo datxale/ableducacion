@@ -28,7 +28,7 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const { login, error } = useAuth();
 
-  const [form, setForm] = useState({ username: '', password: '' });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState('');
@@ -40,12 +40,12 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.username || !form.password) {
+    if (!form.email || !form.password) {
       setLocalError('Por favor completa todos los campos.');
       return;
     }
     setLoading(true);
-    const result = await login(form.username, form.password);
+    const result = await login(form.email, form.password);
     setLoading(false);
     if (result.success) {
       navigate('/dashboard');
@@ -149,9 +149,10 @@ const LoginPage = () => {
             <Box component="form" onSubmit={handleSubmit} noValidate>
               <TextField
                 fullWidth
-                label="Usuario"
-                name="username"
-                value={form.username}
+                label="Correo electrónico"
+                name="email"
+                type="email"
+                value={form.email}
                 onChange={handleChange}
                 InputProps={{
                   startAdornment: (
