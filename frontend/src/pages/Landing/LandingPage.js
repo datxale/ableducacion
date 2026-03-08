@@ -255,68 +255,72 @@ const LandingPage = () => {
       </Box>
 
       {/* ═══════════════════════════════════════════
-          TESTIMONIALS SLIDER
+          TESTIMONIALS CAROUSEL
           ═══════════════════════════════════════════ */}
       <Box sx={{ py: { xs: 8, md: 12 }, background: '#FFF9EC' }}>
-        <Container maxWidth="sm">
-          <Box
-            sx={{
-              position: 'relative',
-              overflow: 'hidden',
-              minHeight: { xs: 280, md: 320 },
-            }}
-          >
-            {allTestimonials.map((t, i) => (
-              <Box
-                key={i}
-                sx={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  opacity: currentSlide === i ? 1 : 0,
-                  transform: currentSlide === i ? 'translateX(0)' : 'translateX(60px)',
-                  transition: 'opacity 0.6s ease, transform 0.6s ease',
-                  pointerEvents: currentSlide === i ? 'auto' : 'none',
-                }}
-              >
+        <Container maxWidth="lg">
+          {/* Carousel track */}
+          <Box sx={{ overflow: 'hidden' }}>
+            <Box
+              sx={{
+                display: 'flex',
+                transition: 'transform 0.7s cubic-bezier(0.4, 0, 0.2, 1)',
+                transform: `translateX(-${currentSlide * (100 / 3)}%)`,
+              }}
+            >
+              {/* Duplicate items for infinite loop effect */}
+              {[...allTestimonials, ...allTestimonials].map((t, i) => (
                 <Box
+                  key={i}
                   sx={{
-                    background: '#fff',
-                    borderRadius: '24px',
-                    p: { xs: 3, md: 5 },
-                    textAlign: 'center',
-                    boxShadow: '0 8px 40px rgba(0,0,0,0.06)',
-                    border: '1px solid rgba(0,0,0,0.04)',
+                    flex: { xs: '0 0 100%', sm: '0 0 50%', md: '0 0 33.333%' },
+                    px: 1.5,
+                    boxSizing: 'border-box',
                   }}
                 >
-                  <Typography
-                    variant="h5"
+                  <Box
                     sx={{
-                      fontWeight: 700,
-                      fontSize: { xs: '1.1rem', md: '1.4rem' },
-                      lineHeight: 1.6,
-                      mb: 3,
-                      fontStyle: 'italic',
-                      color: '#1a1a2e',
+                      background: '#fff',
+                      borderRadius: '20px',
+                      p: { xs: 3, md: 4 },
+                      textAlign: 'center',
+                      boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
+                      border: '1px solid rgba(0,0,0,0.04)',
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      minHeight: 260,
                     }}
                   >
-                    &ldquo;{t.quote}&rdquo;
-                  </Typography>
-                  <Rating
-                    value={t.rating}
-                    readOnly
-                    sx={{ mb: 1.5, '& .MuiRating-icon': { color: '#FFD93D' } }}
-                  />
-                  <Typography
-                    variant="body2"
-                    sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.9rem' }}
-                  >
-                    {t.role}
-                  </Typography>
+                    <Typography
+                      sx={{
+                        fontWeight: 600,
+                        fontSize: { xs: '0.95rem', md: '1.05rem' },
+                        lineHeight: 1.7,
+                        mb: 3,
+                        fontStyle: 'italic',
+                        color: '#1a1a2e',
+                      }}
+                    >
+                      &ldquo;{t.quote}&rdquo;
+                    </Typography>
+                    <Rating
+                      value={t.rating}
+                      readOnly
+                      size="small"
+                      sx={{ mb: 1.5, mx: 'auto', '& .MuiRating-icon': { color: '#FFD93D' } }}
+                    />
+                    <Typography
+                      variant="body2"
+                      sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.85rem' }}
+                    >
+                      {t.role}
+                    </Typography>
+                  </Box>
                 </Box>
-              </Box>
-            ))}
+              ))}
+            </Box>
           </Box>
 
           {/* Dots indicator */}
