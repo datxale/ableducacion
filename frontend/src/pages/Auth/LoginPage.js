@@ -1,32 +1,24 @@
 import React, { useState } from 'react';
 import {
   Box,
-  Container,
-  Paper,
   Typography,
   TextField,
   Button,
-  InputAdornment,
   IconButton,
   Alert,
-  Link,
-  Divider,
   CircularProgress,
+  Fab,
 } from '@mui/material';
 import {
   Visibility,
   VisibilityOff,
-  Person,
-  Lock,
-  MenuBook,
-  ArrowBack,
 } from '@mui/icons-material';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login, error } = useAuth();
+  const { login } = useAuth();
 
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -54,217 +46,388 @@ const LoginPage = () => {
     }
   };
 
-  return (
+  // Floating decorative elements
+  const FloatingIcon = ({ children, top, left, right, size = 40, delay = 0 }) => (
     <Box
       sx={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #1a237e 0%, #1565c0 50%, #42a5f5 100%)',
+        position: 'absolute',
+        top,
+        left,
+        right,
+        width: size,
+        height: size,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        position: 'relative',
-        overflow: 'hidden',
-        py: 4,
+        fontSize: size * 0.6,
+        opacity: 0.7,
+        animation: `floatIcon ${3 + delay}s ease-in-out infinite alternate`,
+        '@keyframes floatIcon': {
+          '0%': { transform: 'translateY(0px) rotate(0deg)' },
+          '100%': { transform: 'translateY(-15px) rotate(5deg)' },
+        },
       }}
     >
-      {/* Background decorations */}
-      {[...Array(5)].map((_, i) => (
+      {children}
+    </Box>
+  );
+
+  return (
+    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+      {/* LEFT SIDE - Dark panel with branding */}
+      <Box
+        sx={{
+          flex: 1,
+          background: 'linear-gradient(135deg, #0d1b3e 0%, #1a2d5a 50%, #0d1b3e 100%)',
+          display: { xs: 'none', md: 'flex' },
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+          overflow: 'hidden',
+          p: 4,
+        }}
+      >
+        {/* Dashed decorative path */}
         <Box
-          key={i}
           sx={{
             position: 'absolute',
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.06)',
-            width: [100, 200, 80, 150, 120][i],
-            height: [100, 200, 80, 150, 120][i],
-            top: [`${15 + i * 15}%`],
-            left: i % 2 === 0 ? `${i * 20}%` : 'auto',
-            right: i % 2 !== 0 ? `${i * 15}%` : 'auto',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: '10%',
+              left: '20%',
+              width: '60%',
+              height: '80%',
+              border: '2px dashed rgba(255,255,255,0.15)',
+              borderRadius: '50%',
+              transform: 'rotate(-15deg)',
+            },
           }}
         />
-      ))}
 
-      <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1 }}>
-        {/* Back button */}
-        <Button
-          startIcon={<ArrowBack />}
-          onClick={() => navigate('/')}
-          sx={{
-            color: '#fff',
-            mb: 2,
-            boxShadow: 'none',
-            '&:hover': { background: 'rgba(255,255,255,0.1)', transform: 'none', boxShadow: 'none' },
-          }}
-        >
-          Volver al inicio
-        </Button>
+        {/* Floating decorative icons */}
+        <FloatingIcon top="8%" left="10%" size={50} delay={0}>📚</FloatingIcon>
+        <FloatingIcon top="15%" right="15%" size={45} delay={0.5}>🎓</FloatingIcon>
+        <FloatingIcon top="40%" left="5%" size={35} delay={1}>✏️</FloatingIcon>
+        <FloatingIcon top="65%" right="10%" size={40} delay={1.5}>📐</FloatingIcon>
+        <FloatingIcon top="80%" left="15%" size={45} delay={2}>🌟</FloatingIcon>
+        <FloatingIcon top="5%" left="50%" size={35} delay={0.8}>🔬</FloatingIcon>
+        <FloatingIcon top="75%" right="25%" size={38} delay={1.2}>🎨</FloatingIcon>
 
-        <Paper
-          elevation={24}
-          sx={{
-            borderRadius: '28px',
-            overflow: 'hidden',
-            boxShadow: '0 40px 80px rgba(0,0,0,0.3)',
-          }}
-        >
-          {/* Header */}
+        {/* Dots decoration */}
+        {[...Array(8)].map((_, i) => (
+          <Box
+            key={i}
+            sx={{
+              position: 'absolute',
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.3)',
+              top: `${10 + i * 11}%`,
+              left: `${15 + (i % 3) * 30}%`,
+            }}
+          />
+        ))}
+
+        {/* Logo / Brand */}
+        <Box sx={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
           <Box
             sx={{
-              background: 'linear-gradient(135deg, #1565c0, #42a5f5)',
-              p: 4,
-              textAlign: 'center',
+              width: 80,
+              height: 80,
+              borderRadius: '20px',
+              background: 'linear-gradient(135deg, #42a5f5, #1565c0)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mx: 'auto',
+              mb: 3,
+              boxShadow: '0 8px 32px rgba(66,165,245,0.3)',
             }}
           >
-            <Box
-              sx={{
-                background: 'rgba(255,255,255,0.2)',
-                borderRadius: '20px',
-                p: 2,
-                display: 'inline-flex',
-                mb: 2,
-              }}
-            >
-              <MenuBook sx={{ color: '#fff', fontSize: '2.5rem' }} />
-            </Box>
-            <Typography variant="h4" fontWeight={800} sx={{ color: '#fff' }}>
-              ¡Hola de nuevo! 👋
-            </Typography>
-            <Typography sx={{ color: 'rgba(255,255,255,0.85)', mt: 0.5 }}>
-              Ingresa a tu cuenta para continuar aprendiendo
-            </Typography>
+            <Typography sx={{ fontSize: '2.5rem' }}>🏫</Typography>
           </Box>
 
-          {/* Form */}
-          <Box sx={{ p: 4 }}>
-            {(localError || error) && (
-              <Alert
-                severity="error"
-                sx={{ mb: 3, borderRadius: '12px' }}
-                onClose={() => setLocalError('')}
-              >
-                {localError || error}
-              </Alert>
-            )}
-
-            <Box component="form" onSubmit={handleSubmit} noValidate>
-              <TextField
-                fullWidth
-                label="Correo electrónico"
-                name="email"
-                type="email"
-                value={form.email}
-                onChange={handleChange}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Person color="primary" />
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{ mb: 2.5 }}
-                disabled={loading}
-              />
-
-              <TextField
-                fullWidth
-                label="Contraseña"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                value={form.password}
-                onChange={handleChange}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Lock color="primary" />
-                    </InputAdornment>
-                  ),
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{ mb: 3 }}
-                disabled={loading}
-              />
-
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                size="large"
-                disabled={loading}
-                sx={{
-                  py: 1.5,
-                  fontSize: '1.1rem',
-                  fontWeight: 700,
-                  borderRadius: '12px',
-                  mb: 2,
-                }}
-              >
-                {loading ? (
-                  <CircularProgress size={24} color="inherit" />
-                ) : (
-                  '¡Ingresar!'
-                )}
-              </Button>
-
-              <Divider sx={{ my: 2 }}>
-                <Typography variant="caption" color="text.secondary">
-                  ¿No tienes cuenta?
-                </Typography>
-              </Divider>
-
-              <Button
-                fullWidth
-                variant="outlined"
-                size="large"
-                onClick={() => navigate('/register')}
-                sx={{
-                  py: 1.5,
-                  fontSize: '1rem',
-                  borderRadius: '12px',
-                  borderWidth: 2,
-                  boxShadow: 'none',
-                  '&:hover': { borderWidth: 2, boxShadow: 'none', transform: 'none' },
-                }}
-              >
-                Registrarse Gratis
-              </Button>
+          <Typography
+            variant="h3"
+            sx={{
+              color: '#fff',
+              fontWeight: 900,
+              mb: 1,
+              letterSpacing: 1,
+            }}
+          >
+            ABL
+            <Box component="span" sx={{ color: '#42a5f5' }}>
+              EDUCACION
             </Box>
+          </Typography>
 
-            <Box sx={{ mt: 3, textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
-                Al ingresar, aceptas nuestros{' '}
-                <Link href="#" underline="hover" color="primary">
-                  Terminos de Servicio
-                </Link>
-              </Typography>
-            </Box>
-          </Box>
-        </Paper>
+          <Typography
+            variant="h5"
+            sx={{
+              color: '#fff',
+              fontWeight: 700,
+              mt: 4,
+              mb: 1,
+            }}
+          >
+            Si eres docente
+          </Typography>
+          <Typography
+            variant="h5"
+            sx={{
+              color: '#fff',
+              fontWeight: 700,
+              mb: 3,
+            }}
+          >
+            inscríbete aquí
+          </Typography>
 
-        {/* Decorative emojis */}
-        <Box sx={{ textAlign: 'center', mt: 3, display: 'flex', justifyContent: 'center', gap: 2 }}>
-          {['📚', '✏️', '🎒', '🌟', '📐'].map((emoji, i) => (
+          <Button
+            variant="contained"
+            size="large"
+            onClick={() => navigate('/register')}
+            sx={{
+              background: 'linear-gradient(135deg, #7c4dff, #b388ff)',
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: '1.1rem',
+              px: 6,
+              py: 1.5,
+              borderRadius: '16px',
+              textTransform: 'none',
+              boxShadow: '0 8px 24px rgba(124,77,255,0.4)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #651fff, #7c4dff)',
+                boxShadow: '0 12px 32px rgba(124,77,255,0.5)',
+                transform: 'translateY(-2px)',
+              },
+              transition: 'all 0.3s ease',
+            }}
+          >
+            Registrarme
+          </Button>
+
+          <Box sx={{ mt: 4 }}>
             <Typography
-              key={i}
+              variant="subtitle1"
               sx={{
-                fontSize: '1.5rem',
-                animation: `float ${2 + i * 0.3}s ease-in-out infinite alternate`,
-                '@keyframes float': {
-                  '0%': { transform: 'translateY(0px)' },
-                  '100%': { transform: 'translateY(-10px)' },
-                },
+                color: '#fff',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: 2,
+                mb: 1,
               }}
             >
-              {emoji}
+              ¡Recuerda!
             </Typography>
-          ))}
+            <Typography
+              sx={{
+                color: 'rgba(255,255,255,0.7)',
+                maxWidth: 300,
+                mx: 'auto',
+                lineHeight: 1.6,
+              }}
+            >
+              Solo los docentes y estudiantes registrados en ABL Educacion tienen acceso al Portal
+            </Typography>
+          </Box>
         </Box>
-      </Container>
+      </Box>
+
+      {/* RIGHT SIDE - Login form */}
+      <Box
+        sx={{
+          flex: 1,
+          background: '#fdf6e3',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 4,
+          position: 'relative',
+        }}
+      >
+        <Box sx={{ maxWidth: 400, width: '100%' }}>
+          {/* Mobile logo */}
+          <Box sx={{ display: { xs: 'block', md: 'none' }, textAlign: 'center', mb: 4 }}>
+            <Typography variant="h4" fontWeight={900} color="primary">
+              ABL<Box component="span" sx={{ color: '#ff9800' }}>EDUCACION</Box>
+            </Typography>
+          </Box>
+
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 900,
+              textAlign: 'center',
+              mb: 1,
+              color: '#1a2d5a',
+            }}
+          >
+            ¡Bienvenido/a al
+          </Typography>
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 900,
+              textAlign: 'center',
+              mb: 4,
+              color: '#1a2d5a',
+            }}
+          >
+            Portal Educativo!
+          </Typography>
+
+          {localError && (
+            <Alert
+              severity="error"
+              sx={{ mb: 3, borderRadius: '12px' }}
+              onClose={() => setLocalError('')}
+            >
+              {localError}
+            </Alert>
+          )}
+
+          <Box component="form" onSubmit={handleSubmit} noValidate>
+            <TextField
+              fullWidth
+              label="Ingresa tu correo electrónico"
+              name="email"
+              type="email"
+              value={form.email}
+              onChange={handleChange}
+              disabled={loading}
+              sx={{
+                mb: 3,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '12px',
+                  backgroundColor: '#fff',
+                  '& fieldset': { borderColor: '#ccc', borderWidth: 2 },
+                  '&:hover fieldset': { borderColor: '#1565c0' },
+                  '&.Mui-focused fieldset': { borderColor: '#1565c0' },
+                },
+                '& .MuiInputLabel-root': { color: '#888' },
+              }}
+            />
+
+            <TextField
+              fullWidth
+              label="Ingresa tu contraseña"
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              value={form.password}
+              onChange={handleChange}
+              disabled={loading}
+              InputProps={{
+                endAdornment: (
+                  <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                ),
+              }}
+              sx={{
+                mb: 4,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '12px',
+                  backgroundColor: '#fff',
+                  '& fieldset': { borderColor: '#ccc', borderWidth: 2 },
+                  '&:hover fieldset': { borderColor: '#1565c0' },
+                  '&.Mui-focused fieldset': { borderColor: '#1565c0' },
+                },
+                '& .MuiInputLabel-root': { color: '#888' },
+              }}
+            />
+
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              size="large"
+              disabled={loading}
+              sx={{
+                py: 1.8,
+                fontSize: '1.2rem',
+                fontWeight: 700,
+                borderRadius: '50px',
+                background: 'linear-gradient(135deg, #ff4081, #ff80ab)',
+                boxShadow: '0 8px 24px rgba(255,64,129,0.4)',
+                textTransform: 'none',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #f50057, #ff4081)',
+                  boxShadow: '0 12px 32px rgba(255,64,129,0.5)',
+                  transform: 'translateY(-2px)',
+                },
+                transition: 'all 0.3s ease',
+              }}
+            >
+              {loading ? (
+                <CircularProgress size={28} color="inherit" />
+              ) : (
+                'Ingresar'
+              )}
+            </Button>
+          </Box>
+
+          <Box sx={{ textAlign: 'center', mt: 4 }}>
+            <Typography
+              component="a"
+              href="#"
+              sx={{
+                color: '#1565c0',
+                textDecoration: 'none',
+                fontWeight: 600,
+                '&:hover': { textDecoration: 'underline' },
+              }}
+            >
+              ¿Olvidaste tu contraseña?
+            </Typography>
+            <br />
+            <Typography
+              component="a"
+              href="#"
+              sx={{
+                color: '#1565c0',
+                textDecoration: 'none',
+                fontWeight: 600,
+                '&:hover': { textDecoration: 'underline' },
+              }}
+            >
+              Haz click aquí
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* WhatsApp floating button */}
+        <Fab
+          color="success"
+          aria-label="WhatsApp"
+          sx={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            width: 64,
+            height: 64,
+            boxShadow: '0 6px 20px rgba(37,211,102,0.5)',
+            '&:hover': {
+              transform: 'scale(1.1)',
+              boxShadow: '0 8px 28px rgba(37,211,102,0.6)',
+            },
+            transition: 'all 0.3s ease',
+          }}
+          onClick={() => window.open('https://wa.me/51947279926', '_blank')}
+        >
+          <Box sx={{ fontSize: '2rem', lineHeight: 1 }}>💬</Box>
+        </Fab>
+      </Box>
     </Box>
   );
 };
