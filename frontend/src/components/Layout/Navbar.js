@@ -28,10 +28,8 @@ import {
   BarChart,
   AdminPanelSettings,
   Logout,
-  Person,
   CalendarMonth,
   Close,
-  MenuBook,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -70,18 +68,24 @@ const Navbar = () => {
   const roleColor = isAdmin ? '#9c27b0' : user?.role === 'docente' ? '#1976d2' : '#4caf50';
   const roleLabel = isAdmin ? 'Admin' : user?.role === 'docente' ? 'Docente' : 'Estudiante';
 
+  const isLanding = location.pathname === '/';
+
   return (
     <>
       <AppBar
-        position="sticky"
+        position={isLanding && !isAuthenticated ? 'absolute' : 'sticky'}
         elevation={0}
         sx={{
-          background: 'linear-gradient(135deg, #1565c0 0%, #1976d2 50%, #42a5f5 100%)',
-          borderBottom: '1px solid rgba(255,255,255,0.1)',
+          background:
+            isLanding && !isAuthenticated
+              ? 'transparent'
+              : 'linear-gradient(135deg, #1565c0 0%, #1976d2 50%, #42a5f5 100%)',
+          borderBottom: isLanding && !isAuthenticated ? 'none' : '1px solid rgba(255,255,255,0.1)',
           zIndex: theme.zIndex.drawer + 1,
+          boxShadow: 'none',
         }}
       >
-        <Toolbar sx={{ px: { xs: 1, md: 3 } }}>
+        <Toolbar sx={{ px: { xs: 2, md: 4 } }}>
           {/* Logo */}
           <Box
             sx={{
@@ -93,40 +97,77 @@ const Navbar = () => {
             }}
             onClick={() => navigate(isAuthenticated ? '/dashboard' : '/')}
           >
-            <Box
-              sx={{
-                background: 'rgba(255,255,255,0.2)',
-                borderRadius: '12px',
-                p: '6px',
-                mr: 1.5,
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              <MenuBook sx={{ color: '#fff', fontSize: '1.8rem' }} />
-            </Box>
             <Box>
               <Typography
                 variant="h6"
                 sx={{
-                  fontWeight: 800,
-                  color: '#fff',
+                  fontWeight: 900,
                   lineHeight: 1.1,
-                  fontSize: { xs: '1rem', md: '1.2rem' },
+                  fontSize: { xs: '1.1rem', md: '1.3rem' },
+                  letterSpacing: 1,
                 }}
               >
-                ABL Educacion
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{ color: 'rgba(255,255,255,0.8)', fontWeight: 500, display: { xs: 'none', sm: 'block' } }}
-              >
-                Aprendiendo juntos
+                <Box component="span" sx={{ color: '#1a1a2e' }}>
+                  ABL
+                </Box>
+                <Box component="span" sx={{ color: isLanding && !isAuthenticated ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.8)' }}>
+                  Educación
+                </Box>
+                <Box
+                  component="span"
+                  sx={{
+                    color: '#FF6B6B',
+                    fontSize: '1.4rem',
+                    ml: 0.3,
+                    verticalAlign: 'super',
+                  }}
+                >
+                  *
+                </Box>
               </Typography>
             </Box>
           </Box>
 
-          {/* Desktop Nav */}
+          {/* Public nav items (landing page) */}
+          {!isAuthenticated && !isMobile && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexGrow: 1 }}>
+              <Button
+                onClick={() => navigate('/')}
+                sx={{
+                  color: '#1a1a2e',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  fontSize: '0.9rem',
+                  boxShadow: 'none',
+                  '&:hover': {
+                    background: 'rgba(0,0,0,0.05)',
+                    boxShadow: 'none',
+                    transform: 'none',
+                  },
+                }}
+              >
+                Inicio
+              </Button>
+              <Button
+                sx={{
+                  color: '#1a1a2e',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  fontSize: '0.9rem',
+                  boxShadow: 'none',
+                  '&:hover': {
+                    background: 'rgba(0,0,0,0.05)',
+                    boxShadow: 'none',
+                    transform: 'none',
+                  },
+                }}
+              >
+                Centro de Ayuda
+              </Button>
+            </Box>
+          )}
+
+          {/* Authenticated desktop nav */}
           {isAuthenticated && !isMobile && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexGrow: 1 }}>
               {navItems.map((item) => (
@@ -223,7 +264,6 @@ const Navbar = () => {
                   </MenuItem>
                 </Menu>
 
-                {/* Mobile menu button */}
                 {isMobile && (
                   <IconButton
                     onClick={() => setMobileOpen(true)}
@@ -234,36 +274,27 @@ const Navbar = () => {
                 )}
               </>
             ) : (
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button
-                  variant="outlined"
-                  onClick={() => navigate('/login')}
-                  sx={{
-                    color: '#fff',
-                    borderColor: 'rgba(255,255,255,0.6)',
-                    boxShadow: 'none',
-                    transform: 'none',
-                    '&:hover': {
-                      transform: 'none',
-                      boxShadow: 'none',
-                      borderColor: '#fff',
-                      background: 'rgba(255,255,255,0.1)',
-                    },
-                  }}
-                >
-                  Ingresar
-                </Button>
-                <Button
-                  variant="contained"
-                  onClick={() => navigate('/register')}
-                  sx={{
-                    background: '#ff9800',
-                    '&:hover': { background: '#f57c00' },
-                  }}
-                >
-                  Registrarse
-                </Button>
-              </Box>
+              <Button
+                variant="contained"
+                onClick={() => navigate('/login')}
+                sx={{
+                  background: '#FF6B6B',
+                  color: '#fff',
+                  fontWeight: 700,
+                  borderRadius: '30px',
+                  px: 3,
+                  py: 1,
+                  textTransform: 'none',
+                  fontSize: '0.9rem',
+                  boxShadow: '0 2px 8px rgba(255,107,107,0.3)',
+                  '&:hover': {
+                    background: '#e05555',
+                    boxShadow: '0 4px 12px rgba(255,107,107,0.4)',
+                  },
+                }}
+              >
+                Portal Docente
+              </Button>
             )}
           </Box>
         </Toolbar>

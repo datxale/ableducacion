@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   Box,
   Container,
@@ -7,446 +7,344 @@ import {
   Grid,
   Card,
   CardContent,
-  Avatar,
-  Chip,
-  Paper,
-  IconButton,
-  Fade,
-  Slide,
+  Rating,
 } from '@mui/material';
-import {
-  School,
-  VideoCall,
-  MenuBook,
-  EmojiEvents,
-  WhatsApp,
-  ArrowForward,
-  Star,
-  Groups,
-  Lightbulb,
-  Favorite,
-} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import Footer from '../../components/Layout/Footer';
-import { gradeColors } from '../../styles/theme';
 
-const gradeItems = [
-  { label: '1° Grado', icon: '🌟', desc: 'Primeros pasos' },
-  { label: '2° Grado', icon: '🚀', desc: 'Explorando' },
-  { label: '3° Grado', icon: '🎨', desc: 'Creatividad' },
-  { label: '4° Grado', icon: '🦁', desc: 'Valientes' },
-  { label: '5° Grado', icon: '🌈', desc: 'Creciendo' },
-  { label: '6° Grado', icon: '🏆', desc: 'Campeones' },
-];
+/* ──────────────────────────────────────────────
+   Testimonials data
+   ────────────────────────────────────────────── */
+const mainTestimonial = {
+  quote:
+    'ABL Educación me permite innovar en mis clases cada día',
+  rating: 5,
+  role: 'Docente de primaria, Lima',
+};
 
-const features = [
+const testimonials = [
   {
-    icon: <MenuBook sx={{ fontSize: '2.5rem' }} />,
-    title: 'Fichas Didácticas',
-    desc: 'Material educativo descargable en PDF para cada grado y materia.',
-    color: '#1976d2',
-    bg: 'linear-gradient(135deg, #e3f2fd, #bbdefb)',
+    quote:
+      'Con ABL Educación, las matemáticas ya no son difíciles. Ahora disfruto aprendiendo y resolviendo los desafíos.',
+    rating: 5,
+    role: 'Estudiante de 5.° grado, Arequipa',
   },
   {
-    icon: <VideoCall sx={{ fontSize: '2.5rem' }} />,
-    title: 'Videos Educativos',
-    desc: 'Videos explicativos y de refuerzo para cada tema.',
-    color: '#e91e63',
-    bg: 'linear-gradient(135deg, #fce4ec, #f8bbd9)',
+    quote:
+      'Este programa nos ayuda a alinear nuestras clases y metas con el Currículo Nacional, mientras impulsamos el uso de tecnología.',
+    rating: 5,
+    role: 'Director de una institución educativa, Cusco',
   },
   {
-    icon: <School sx={{ fontSize: '2.5rem' }} />,
-    title: 'Clases en Vivo',
-    desc: 'Sesiones interactivas con docentes en tiempo real.',
-    color: '#4caf50',
-    bg: 'linear-gradient(135deg, #e8f5e9, #c8e6c9)',
-  },
-  {
-    icon: <EmojiEvents sx={{ fontSize: '2.5rem' }} />,
-    title: 'Seguimiento de Progreso',
-    desc: 'Monitorea el avance y logros de tus estudiantes.',
-    color: '#ff9800',
-    bg: 'linear-gradient(135deg, #fff3e0, #ffe0b2)',
+    quote:
+      'ABL Educación nos apoya mucho al monitorear el progreso de nuestros estudiantes, permitiéndonos tomar decisiones basadas en datos reales.',
+    rating: 5,
+    role: 'Especialista pedagógico',
   },
 ];
 
-const stats = [
-  { number: '500+', label: 'Estudiantes', icon: '👨‍🎓' },
-  { number: '50+', label: 'Docentes', icon: '👩‍🏫' },
-  { number: '1000+', label: 'Actividades', icon: '📚' },
-  { number: '100+', label: 'Clases en Vivo', icon: '🎥' },
+/* ──────────────────────────────────────────────
+   Steps data
+   ────────────────────────────────────────────── */
+const steps = [
+  {
+    number: 1,
+    title: 'Crea tus aulas e inscribe a tus estudiantes',
+    desc: 'Regístrate en ABL Educación, ingresa al Portal Docente e inscribe a tus estudiantes.',
+    color: '#4ECDC4',
+  },
+  {
+    number: 2,
+    title: 'Descarguen e ingresen al aplicativo ABL Educación',
+    desc: '¡Comparte con tus estudiantes sus usuarios y contraseñas e ingresen al app para empezar a aprender de manera divertida!',
+    color: '#FF6B6B',
+  },
+  {
+    number: 3,
+    title: 'Revisa tus recursos y reportes',
+    desc: 'Accede a videos pedagógicos, fichas curriculares, recomendaciones y reportes automáticos desde tu Portal Docente.',
+    color: '#56CCF2',
+  },
 ];
 
 const LandingPage = () => {
   const navigate = useNavigate();
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    setVisible(true);
-  }, []);
 
   return (
-    <Box sx={{ overflowX: 'hidden' }}>
-      {/* Hero Section */}
+    <Box sx={{ overflowX: 'hidden', fontFamily: "'Nunito', sans-serif" }}>
+
+      {/* ═══════════════════════════════════════════
+          HERO SECTION
+          ═══════════════════════════════════════════ */}
       <Box
         sx={{
-          background: 'linear-gradient(135deg, #1a237e 0%, #1565c0 40%, #1976d2 70%, #42a5f5 100%)',
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
+          background: 'linear-gradient(180deg, #4ECDC4 0%, #2AB7AD 100%)',
           position: 'relative',
           overflow: 'hidden',
-          pt: 8,
+          pt: { xs: 10, md: 12 },
+          pb: { xs: 8, md: 10 },
+          minHeight: { md: '80vh' },
+          display: 'flex',
+          alignItems: 'center',
         }}
       >
-        {/* Decorative floating circles */}
-        {[...Array(8)].map((_, i) => (
-          <Box
-            key={i}
-            sx={{
-              position: 'absolute',
-              borderRadius: '50%',
-              background: 'rgba(255,255,255,0.08)',
-              width: [80, 120, 60, 200, 100, 150, 90, 70][i],
-              height: [80, 120, 60, 200, 100, 150, 90, 70][i],
-              top: [`${10 + i * 10}%`],
-              left: i % 2 === 0 ? `${i * 12}%` : 'auto',
-              right: i % 2 !== 0 ? `${i * 8}%` : 'auto',
-              animation: `float${i} ${3 + i * 0.5}s ease-in-out infinite alternate`,
-              '@keyframes float0': { '0%': { transform: 'translateY(0px)' }, '100%': { transform: 'translateY(-20px)' } },
-              '@keyframes float1': { '0%': { transform: 'translateY(0px)' }, '100%': { transform: 'translateY(-15px)' } },
-              '@keyframes float2': { '0%': { transform: 'translateY(0px)' }, '100%': { transform: 'translateY(-25px)' } },
-              '@keyframes float3': { '0%': { transform: 'translateY(0px)' }, '100%': { transform: 'translateY(-10px)' } },
-              '@keyframes float4': { '0%': { transform: 'translateY(0px)' }, '100%': { transform: 'translateY(-18px)' } },
-              '@keyframes float5': { '0%': { transform: 'translateY(0px)' }, '100%': { transform: 'translateY(-22px)' } },
-              '@keyframes float6': { '0%': { transform: 'translateY(0px)' }, '100%': { transform: 'translateY(-12px)' } },
-              '@keyframes float7': { '0%': { transform: 'translateY(0px)' }, '100%': { transform: 'translateY(-16px)' } },
-            }}
-          />
-        ))}
-
-        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
-          <Grid container spacing={4} alignItems="center">
-            <Grid item xs={12} md={6}>
-              <Fade in={visible} timeout={1000}>
-                <Box>
-                  <Chip
-                    label="🎓 Plataforma Educativa #1"
-                    sx={{
-                      background: 'rgba(255,255,255,0.2)',
-                      color: '#fff',
-                      fontWeight: 700,
-                      mb: 2,
-                      fontSize: '0.85rem',
-                      backdropFilter: 'blur(10px)',
-                    }}
-                  />
-                  <Typography
-                    variant="h1"
-                    sx={{
-                      color: '#fff',
-                      fontWeight: 900,
-                      fontSize: { xs: '2.5rem', md: '3.5rem', lg: '4rem' },
-                      lineHeight: 1.1,
-                      mb: 2,
-                      textShadow: '0 4px 20px rgba(0,0,0,0.2)',
-                    }}
-                  >
-                    Aprender es{' '}
-                    <Box
-                      component="span"
-                      sx={{
-                        color: '#ffd200',
-                        display: 'inline-block',
-                        animation: 'bounce 2s ease-in-out infinite',
-                        '@keyframes bounce': {
-                          '0%, 100%': { transform: 'translateY(0)' },
-                          '50%': { transform: 'translateY(-5px)' },
-                        },
-                      }}
-                    >
-                      Divertido
-                    </Box>{' '}
-                    y Maravilloso!
-                  </Typography>
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      color: 'rgba(255,255,255,0.9)',
-                      mb: 4,
-                      lineHeight: 1.6,
-                      fontWeight: 400,
-                      fontSize: { xs: '1rem', md: '1.15rem' },
-                    }}
-                  >
-                    Plataforma educativa para niños de 1° a 6° grado. Fichas,
-                    videos, clases en vivo y mucho más para que aprender sea
-                    una aventura increíble.
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                    <Button
-                      variant="contained"
-                      size="large"
-                      endIcon={<ArrowForward />}
-                      onClick={() => navigate('/register')}
-                      sx={{
-                        background: 'linear-gradient(135deg, #ff9800, #ffd200)',
-                        color: '#1a237e',
-                        fontWeight: 800,
-                        px: 4,
-                        py: 1.5,
-                        fontSize: '1.1rem',
-                        boxShadow: '0 8px 32px rgba(255,152,0,0.5)',
-                        '&:hover': {
-                          background: 'linear-gradient(135deg, #f57c00, #ff9800)',
-                          boxShadow: '0 12px 40px rgba(255,152,0,0.6)',
-                        },
-                      }}
-                    >
-                      ¡Comenzar Gratis!
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      size="large"
-                      onClick={() => navigate('/login')}
-                      sx={{
-                        color: '#fff',
-                        borderColor: 'rgba(255,255,255,0.6)',
-                        borderWidth: 2,
-                        px: 4,
-                        py: 1.5,
-                        fontSize: '1.1rem',
-                        boxShadow: 'none',
-                        '&:hover': {
-                          borderColor: '#fff',
-                          background: 'rgba(255,255,255,0.1)',
-                          transform: 'none',
-                          boxShadow: 'none',
-                        },
-                      }}
-                    >
-                      Iniciar Sesión
-                    </Button>
-                  </Box>
-                </Box>
-              </Fade>
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <Fade in={visible} timeout={1500}>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: 2,
-                  }}
-                >
-                  {/* Fun illustration with emoji grid */}
-                  <Box
-                    sx={{
-                      background: 'rgba(255,255,255,0.1)',
-                      backdropFilter: 'blur(20px)',
-                      borderRadius: '32px',
-                      p: 4,
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      textAlign: 'center',
-                      maxWidth: 400,
-                      width: '100%',
-                    }}
-                  >
-                    <Typography sx={{ fontSize: '5rem', mb: 1, display: 'block' }}>
-                      🏫
-                    </Typography>
-                    <Typography variant="h5" sx={{ color: '#fff', fontWeight: 800, mb: 1 }}>
-                      ¡Bienvenido a ABL!
-                    </Typography>
-                    <Typography sx={{ color: 'rgba(255,255,255,0.8)', mb: 3 }}>
-                      Tu plataforma de aprendizaje favorita
-                    </Typography>
-                    <Grid container spacing={1.5}>
-                      {['📚 Fichas', '🎥 Videos', '👩‍🏫 Clases', '⭐ Logros'].map((item) => (
-                        <Grid item xs={6} key={item}>
-                          <Box
-                            sx={{
-                              background: 'rgba(255,255,255,0.15)',
-                              borderRadius: '12px',
-                              py: 1.5,
-                              px: 1,
-                              textAlign: 'center',
-                            }}
-                          >
-                            <Typography sx={{ color: '#fff', fontWeight: 600, fontSize: '0.9rem' }}>
-                              {item}
-                            </Typography>
-                          </Box>
-                        </Grid>
-                      ))}
-                    </Grid>
-                  </Box>
-                </Box>
-              </Fade>
-            </Grid>
-          </Grid>
-
-          {/* Stats */}
-          <Box sx={{ mt: 8, mb: 4 }}>
-            <Grid container spacing={2}>
-              {stats.map((stat) => (
-                <Grid item xs={6} md={3} key={stat.label}>
-                  <Box
-                    sx={{
-                      background: 'rgba(255,255,255,0.1)',
-                      backdropFilter: 'blur(10px)',
-                      borderRadius: '16px',
-                      p: 2.5,
-                      textAlign: 'center',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                    }}
-                  >
-                    <Typography sx={{ fontSize: '2rem', mb: 0.5 }}>{stat.icon}</Typography>
-                    <Typography variant="h4" sx={{ color: '#ffd200', fontWeight: 900 }}>
-                      {stat.number}
-                    </Typography>
-                    <Typography sx={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>
-                      {stat.label}
-                    </Typography>
-                  </Box>
-                </Grid>
-              ))}
-            </Grid>
-          </Box>
-        </Container>
-
-        {/* Wave bottom */}
+        {/* Decorative circles */}
         <Box
           sx={{
             position: 'absolute',
-            bottom: -1,
-            left: 0,
-            width: '100%',
-            overflow: 'hidden',
-            lineHeight: 0,
+            top: 40,
+            left: 30,
+            width: 80,
+            height: 80,
+            borderRadius: '50%',
+            background: '#5B6EE1',
+            opacity: 0.8,
           }}
-        >
-          <svg viewBox="0 0 1200 120" style={{ display: 'block', width: '100%', height: '60px' }}>
-            <path
-              d="M0,60 C300,120 900,0 1200,60 L1200,120 L0,120 Z"
-              fill="#f5f7fa"
-            />
-          </svg>
-        </Box>
-      </Box>
+        />
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 60,
+            right: '35%',
+            width: 50,
+            height: 50,
+            borderRadius: '50%',
+            background: '#FF6B6B',
+            opacity: 0.8,
+          }}
+        />
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '40%',
+            right: '45%',
+            width: 40,
+            height: 40,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.3)',
+          }}
+        />
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: '20%',
+            left: '10%',
+            width: 60,
+            height: 60,
+            borderRadius: '50%',
+            background: '#FFD93D',
+            opacity: 0.7,
+          }}
+        />
 
-      {/* Grades Section */}
-      <Box sx={{ py: 10, background: '#f5f7fa' }}>
-        <Container maxWidth="lg">
-          <Box sx={{ textAlign: 'center', mb: 6 }}>
-            <Chip
-              label="GRADOS ESCOLARES"
-              sx={{ background: '#e3f2fd', color: '#1976d2', fontWeight: 700, mb: 2 }}
-            />
-            <Typography variant="h3" fontWeight={800} sx={{ mb: 1 }}>
-              De 1° a 6° Grado
-            </Typography>
-            <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 500, mx: 'auto' }}>
-              Material educativo completo para todos los grados de primaria
-            </Typography>
-          </Box>
+        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
+          <Grid container spacing={4} alignItems="center">
+            {/* Left: Text content */}
+            <Grid item xs={12} md={6}>
+              <Typography
+                variant="h2"
+                sx={{
+                  fontWeight: 900,
+                  fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem', lg: '3.5rem' },
+                  lineHeight: 1.15,
+                  mb: 2,
+                  color: '#1a1a2e',
+                  fontStyle: 'italic',
+                }}
+              >
+                Rompiendo barreras,{' '}
+                <Box component="span" sx={{ display: 'block' }}>
+                  impulsando aprendizajes
+                </Box>
+              </Typography>
+              <Typography
+                variant="body1"
+                sx={{
+                  color: 'rgba(0,0,0,0.7)',
+                  mb: 4,
+                  lineHeight: 1.7,
+                  fontSize: { xs: '0.95rem', md: '1.05rem' },
+                  maxWidth: 450,
+                }}
+              >
+                Con <strong>ABL Educación</strong>, nuestros estudiantes pueden acceder a
+                nuevas actividades de matemática cada semana y resolverlas sin conexión
+                permanente a internet.
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Button
+                  variant="contained"
+                  size="large"
+                  onClick={() => navigate('/register')}
+                  sx={{
+                    background: '#FF6B6B',
+                    color: '#fff',
+                    fontWeight: 800,
+                    px: 4,
+                    py: 1.5,
+                    fontSize: '1rem',
+                    borderRadius: '30px',
+                    textTransform: 'none',
+                    boxShadow: '0 4px 15px rgba(255,107,107,0.4)',
+                    '&:hover': {
+                      background: '#e05555',
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 6px 20px rgba(255,107,107,0.5)',
+                    },
+                  }}
+                >
+                  Registrarme
+                </Button>
+                <Button
+                  variant="contained"
+                  size="large"
+                  onClick={() => navigate('/login')}
+                  sx={{
+                    background: '#FFD93D',
+                    color: '#1a1a2e',
+                    fontWeight: 800,
+                    px: 4,
+                    py: 1.5,
+                    fontSize: '1rem',
+                    borderRadius: '30px',
+                    textTransform: 'none',
+                    boxShadow: '0 4px 15px rgba(255,217,61,0.4)',
+                    '&:hover': {
+                      background: '#f0c830',
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 6px 20px rgba(255,217,61,0.5)',
+                    },
+                  }}
+                >
+                  🔽 Descargar app
+                </Button>
+              </Box>
+            </Grid>
 
-          <Grid container spacing={3}>
-            {gradeItems.map((grade, index) => {
-              const colorSet = gradeColors[index];
-              return (
-                <Grid item xs={6} sm={4} md={2} key={grade.label}>
-                  <Card
-                    onClick={() => navigate('/register')}
+            {/* Right: Illustration / Image placeholder */}
+            <Grid item xs={12} md={6}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <Box
+                  sx={{
+                    width: { xs: 280, sm: 360, md: 420 },
+                    height: { xs: 220, sm: 280, md: 320 },
+                    borderRadius: '24px',
+                    background: 'rgba(255,255,255,0.2)',
+                    backdropFilter: 'blur(10px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    overflow: 'hidden',
+                    position: 'relative',
+                  }}
+                >
+                  <Typography
                     sx={{
-                      cursor: 'pointer',
-                      background: colorSet.bg,
-                      borderRadius: '24px',
+                      fontSize: { xs: '4rem', md: '5rem' },
                       textAlign: 'center',
-                      p: 2,
-                      boxShadow: `0 8px 32px ${colorSet.shadow}`,
-                      transition: 'all 0.3s cubic-bezier(0.34,1.56,0.64,1)',
-                      '&:hover': {
-                        transform: 'translateY(-8px) scale(1.05)',
-                        boxShadow: `0 20px 60px ${colorSet.shadow}`,
-                      },
                     }}
                   >
-                    <Typography sx={{ fontSize: '3rem', mb: 1 }}>{grade.icon}</Typography>
-                    <Typography variant="h6" sx={{ color: '#fff', fontWeight: 800, fontSize: '0.95rem' }}>
-                      {grade.label}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.85)' }}>
-                      {grade.desc}
-                    </Typography>
-                  </Card>
-                </Grid>
-              );
-            })}
+                    👩‍🏫📱💡
+                  </Typography>
+                </Box>
+              </Box>
+            </Grid>
           </Grid>
-
-          <Box sx={{ textAlign: 'center', mt: 5 }}>
-            <Button
-              variant="contained"
-              size="large"
-              endIcon={<ArrowForward />}
-              onClick={() => navigate('/register')}
-              sx={{ px: 5, py: 1.5 }}
-            >
-              Ver Todo el Contenido
-            </Button>
-          </Box>
         </Container>
       </Box>
 
-      {/* Features Section */}
-      <Box sx={{ py: 10, background: '#fff' }}>
-        <Container maxWidth="lg">
-          <Box sx={{ textAlign: 'center', mb: 6 }}>
-            <Chip
-              label="¿QUE OFRECEMOS?"
-              sx={{ background: '#e8f5e9', color: '#4caf50', fontWeight: 700, mb: 2 }}
-            />
-            <Typography variant="h3" fontWeight={800} sx={{ mb: 1 }}>
-              Todo lo que necesitas
+      {/* ═══════════════════════════════════════════
+          TESTIMONIALS SECTION
+          ═══════════════════════════════════════════ */}
+      <Box sx={{ py: { xs: 8, md: 12 }, background: '#FFF9EC' }}>
+        <Container maxWidth="md">
+          {/* Featured testimonial */}
+          <Box sx={{ textAlign: 'center', mb: 8 }}>
+            <Typography
+              variant="h3"
+              sx={{
+                fontWeight: 800,
+                fontSize: { xs: '1.8rem', md: '2.5rem' },
+                lineHeight: 1.3,
+                mb: 2,
+                fontStyle: 'italic',
+                color: '#1a1a2e',
+              }}
+            >
+              &ldquo;
+              <Box component="span" sx={{ color: '#4ECDC4', fontWeight: 900 }}>
+                ABL
+              </Box>{' '}
+              <Box component="span" sx={{ color: '#FF6B6B', fontWeight: 900 }}>
+                Educación
+              </Box>{' '}
+              {mainTestimonial.quote.replace('ABL Educación ', '')}&rdquo;
             </Typography>
-            <Typography variant="h6" color="text.secondary">
-              Recursos completos para docentes y estudiantes
+            <Rating
+              value={mainTestimonial.rating}
+              readOnly
+              sx={{ mb: 1, '& .MuiRating-icon': { color: '#FFD93D' } }}
+            />
+            <Typography variant="body1" color="text.secondary" sx={{ fontWeight: 600 }}>
+              {mainTestimonial.role}
             </Typography>
           </Box>
+
+          {/* 3 testimonial cards */}
           <Grid container spacing={3}>
-            {features.map((feature) => (
-              <Grid item xs={12} sm={6} md={3} key={feature.title}>
+            {testimonials.map((t, i) => (
+              <Grid item xs={12} md={4} key={i}>
                 <Card
+                  elevation={0}
                   sx={{
                     height: '100%',
-                    background: feature.bg,
-                    border: 'none',
-                    borderTop: `4px solid ${feature.color}`,
-                    p: 1,
+                    background: '#fff',
+                    borderRadius: '20px',
+                    border: '1px solid rgba(0,0,0,0.06)',
+                    textAlign: 'center',
+                    transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                      boxShadow: '0 12px 40px rgba(0,0,0,0.08)',
+                    },
                   }}
                 >
-                  <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                    <Avatar
+                  <CardContent sx={{ p: 3 }}>
+                    <Typography
+                      variant="body2"
                       sx={{
-                        bgcolor: feature.color,
-                        width: 64,
-                        height: 64,
-                        mx: 'auto',
                         mb: 2,
+                        lineHeight: 1.7,
+                        color: 'text.secondary',
+                        fontStyle: 'italic',
+                        fontSize: '0.9rem',
                       }}
                     >
-                      {React.cloneElement(feature.icon, { sx: { fontSize: '2rem', color: '#fff' } })}
-                    </Avatar>
-                    <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>
-                      {feature.title}
+                      &ldquo;{t.quote}&rdquo;
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {feature.desc}
+                    <Rating
+                      value={t.rating}
+                      readOnly
+                      size="small"
+                      sx={{ mb: 1, '& .MuiRating-icon': { color: '#FFD93D' } }}
+                    />
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        display: 'block',
+                        fontWeight: 700,
+                        color: 'text.primary',
+                        fontSize: '0.8rem',
+                      }}
+                    >
+                      {t.role}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -456,87 +354,42 @@ const LandingPage = () => {
         </Container>
       </Box>
 
-      {/* Quienes Somos Section */}
-      <Box
-        sx={{
-          py: 10,
-          background: 'linear-gradient(135deg, #f5f7fa 0%, #e3f2fd 100%)',
-        }}
-      >
-        <Container maxWidth="lg">
-          <Grid container spacing={6} alignItems="center">
-            <Grid item xs={12} md={6}>
-              <Chip
-                label="QUIENES SOMOS"
-                sx={{ background: '#fff3e0', color: '#ff9800', fontWeight: 700, mb: 2 }}
-              />
-              <Typography variant="h3" fontWeight={800} sx={{ mb: 2 }}>
-                Nuestra Misión Educativa
-              </Typography>
-              <Typography variant="body1" color="text.secondary" sx={{ mb: 3, lineHeight: 1.8 }}>
-                Somos una plataforma educativa comprometida con el desarrollo integral de los niños
-                de 6 a 11 años. Nuestro equipo de docentes especializados crea contenido didáctico
-                de alta calidad, adaptado a cada grado escolar.
-              </Typography>
-              <Typography variant="body1" color="text.secondary" sx={{ mb: 4, lineHeight: 1.8 }}>
-                Creemos que cada niño tiene el potencial de aprender y crecer. Por eso, combinamos
-                metodologías modernas con recursos interactivos que hacen del aprendizaje una
-                experiencia divertida y significativa.
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {[
-                  { icon: <Star sx={{ color: '#ff9800' }} />, text: 'Docentes especializados en educacion primaria' },
-                  { icon: <Lightbulb sx={{ color: '#9c27b0' }} />, text: 'Metodos de ensenanza innovadores y didacticos' },
-                  { icon: <Groups sx={{ color: '#4caf50' }} />, text: 'Comunidad activa de estudiantes y docentes' },
-                  { icon: <Favorite sx={{ color: '#e91e63' }} />, text: 'Aprendizaje con amor y dedicacion' },
-                ].map((item, index) => (
-                  <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    {item.icon}
-                    <Typography variant="body1" fontWeight={500}>
-                      {item.text}
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: 2,
-                }}
+      {/* ═══════════════════════════════════════════
+          PARTNERS / SUPPORTERS SECTION
+          ═══════════════════════════════════════════ */}
+      <Box sx={{ py: 6, background: '#fff', borderTop: '1px solid #f0f0f0' }}>
+        <Container maxWidth="md">
+          <Grid container spacing={4} alignItems="center">
+            <Grid item xs={12} sm={4}>
+              <Typography
+                variant="subtitle2"
+                sx={{ fontWeight: 800, fontStyle: 'italic', mb: 1, color: '#1a1a2e' }}
               >
-                {[
-                  { emoji: '👩‍🏫', title: 'Docentes Expertos', desc: 'Profesionales apasionados' },
-                  { emoji: '📚', title: 'Material Completo', desc: 'Fichas y videos por tema' },
-                  { emoji: '🎯', title: 'Objetivos Claros', desc: 'Por grado y materia' },
-                  { emoji: '🌟', title: 'Resultados Reales', desc: 'Progreso medible' },
-                ].map((item, index) => (
-                  <Paper
-                    key={index}
-                    elevation={0}
-                    sx={{
-                      p: 3,
-                      textAlign: 'center',
-                      borderRadius: '20px',
-                      background: '#fff',
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        transform: 'translateY(-4px)',
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
-                      },
-                    }}
+                Este programa es implementado por
+              </Typography>
+              <Typography
+                variant="h5"
+                sx={{ fontWeight: 900, color: '#4ECDC4', letterSpacing: 2 }}
+              >
+                ABL Educación
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={8}>
+              <Typography
+                variant="subtitle2"
+                sx={{ fontWeight: 800, fontStyle: 'italic', mb: 2, color: '#1a1a2e' }}
+              >
+                Con el apoyo de
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+                {['🏛️ MinEdu', '🌐 ONG Digital', '📚 FundaEdu'].map((partner) => (
+                  <Typography
+                    key={partner}
+                    variant="body1"
+                    sx={{ fontWeight: 700, color: '#666', fontSize: '1rem' }}
                   >
-                    <Typography sx={{ fontSize: '2.5rem', mb: 1 }}>{item.emoji}</Typography>
-                    <Typography variant="subtitle1" fontWeight={700}>
-                      {item.title}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {item.desc}
-                    </Typography>
-                  </Paper>
+                    {partner}
+                  </Typography>
                 ))}
               </Box>
             </Grid>
@@ -544,146 +397,172 @@ const LandingPage = () => {
         </Container>
       </Box>
 
-      {/* CTA Section */}
+      {/* ═══════════════════════════════════════════
+          STEPS SECTION - "De manera divertida"
+          ═══════════════════════════════════════════ */}
       <Box
         sx={{
-          py: 10,
-          background: 'linear-gradient(135deg, #ff9800 0%, #ff5722 100%)',
+          py: { xs: 8, md: 12 },
+          background: '#FFF9EC',
           position: 'relative',
           overflow: 'hidden',
         }}
       >
+        {/* Decorative circles */}
         <Box
           sx={{
             position: 'absolute',
-            top: -50,
-            right: -50,
-            width: 300,
-            height: 300,
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.1)',
-          }}
-        />
-        <Box
-          sx={{
-            position: 'absolute',
-            bottom: -80,
+            top: 60,
             left: -30,
-            width: 250,
-            height: 250,
+            width: 100,
+            height: 100,
             borderRadius: '50%',
-            background: 'rgba(255,255,255,0.08)',
+            background: '#FF6B6B',
+            opacity: 0.6,
           }}
         />
-        <Container maxWidth="md" sx={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
-          <Typography sx={{ fontSize: '4rem', mb: 2 }}>🚀</Typography>
-          <Typography variant="h3" fontWeight={800} sx={{ color: '#fff', mb: 2 }}>
-            ¡Empieza tu aventura hoy!
-          </Typography>
-          <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.9)', mb: 4 }}>
-            Regístrate gratis y accede a cientos de recursos educativos
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: '30%',
+            right: '5%',
+            width: 70,
+            height: 70,
+            borderRadius: '50%',
+            background: '#FFD93D',
+            opacity: 0.5,
+          }}
+        />
+
+        <Container maxWidth="md" sx={{ position: 'relative', zIndex: 1 }}>
+          <Box sx={{ textAlign: 'center', mb: 8 }}>
+            <Typography
+              variant="h3"
+              sx={{
+                fontWeight: 900,
+                fontSize: { xs: '1.8rem', md: '2.5rem' },
+                color: '#1a1a2e',
+              }}
+            >
+              ¡
+              <Box component="span" sx={{ color: '#4ECDC4' }}>
+                ABL
+              </Box>{' '}
+              <Box component="span" sx={{ color: '#FF6B6B' }}>
+                Educación
+              </Box>{' '}
+              de manera
+            </Typography>
+            <Typography
+              variant="h3"
+              sx={{
+                fontWeight: 900,
+                fontStyle: 'italic',
+                fontSize: { xs: '1.8rem', md: '2.5rem' },
+                color: '#1a1a2e',
+              }}
+            >
+              divertida desde hoy!
+            </Typography>
+          </Box>
+
+          <Grid container spacing={4}>
+            {steps.map((step) => (
+              <Grid item xs={12} md={4} key={step.number}>
+                <Box sx={{ textAlign: 'center' }}>
+                  {/* Circular step image placeholder */}
+                  <Box
+                    sx={{
+                      width: 180,
+                      height: 180,
+                      borderRadius: '50%',
+                      background: `linear-gradient(135deg, ${step.color}33, ${step.color}66)`,
+                      mx: 'auto',
+                      mb: 3,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      position: 'relative',
+                      border: `3px solid ${step.color}`,
+                    }}
+                  >
+                    {/* Step number badge */}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        background: step.color,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Typography
+                        sx={{ color: '#fff', fontWeight: 900, fontSize: '1.2rem' }}
+                      >
+                        {step.number}
+                      </Typography>
+                    </Box>
+                    <Typography sx={{ fontSize: '3.5rem' }}>
+                      {step.number === 1 ? '👩‍🏫' : step.number === 2 ? '📱' : '📊'}
+                    </Typography>
+                  </Box>
+                  <Typography
+                    variant="subtitle1"
+                    sx={{ fontWeight: 800, mb: 1, color: '#1a1a2e', fontSize: '1rem' }}
+                  >
+                    {step.title}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: 'text.secondary',
+                      lineHeight: 1.6,
+                      maxWidth: 260,
+                      mx: 'auto',
+                    }}
+                  >
+                    {step.desc}
+                  </Typography>
+                </Box>
+              </Grid>
+            ))}
+          </Grid>
+
+          {/* CTA Button */}
+          <Box sx={{ textAlign: 'center', mt: 8 }}>
             <Button
               variant="contained"
               size="large"
               onClick={() => navigate('/register')}
               sx={{
-                background: '#fff',
-                color: '#ff5722',
-                fontWeight: 800,
-                px: 5,
-                py: 1.5,
-                fontSize: '1.1rem',
-                '&:hover': {
-                  background: '#f5f5f5',
-                },
-              }}
-            >
-              Registrarse Ahora
-            </Button>
-            <Button
-              variant="outlined"
-              size="large"
-              startIcon={<WhatsApp />}
-              href="https://wa.me/1234567890"
-              target="_blank"
-              sx={{
+                background: '#FF6B6B',
                 color: '#fff',
-                borderColor: 'rgba(255,255,255,0.7)',
-                borderWidth: 2,
-                px: 4,
-                py: 1.5,
-                boxShadow: 'none',
+                fontWeight: 800,
+                px: 6,
+                py: 1.8,
+                fontSize: '1.1rem',
+                borderRadius: '30px',
+                textTransform: 'none',
+                boxShadow: '0 4px 15px rgba(255,107,107,0.4)',
                 '&:hover': {
-                  borderColor: '#fff',
-                  background: 'rgba(255,255,255,0.15)',
-                  transform: 'none',
-                  boxShadow: 'none',
+                  background: '#e05555',
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 6px 20px rgba(255,107,107,0.5)',
                 },
               }}
             >
-              Contactar por WhatsApp
+              Registrarme
             </Button>
           </Box>
         </Container>
       </Box>
 
-      {/* Contact Section */}
-      <Box sx={{ py: 8, background: '#fff' }}>
-        <Container maxWidth="lg">
-          <Box sx={{ textAlign: 'center', mb: 5 }}>
-            <Typography variant="h4" fontWeight={800} sx={{ mb: 1 }}>
-              Contáctanos
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Estamos aquí para ayudarte. Escríbenos por WhatsApp
-            </Typography>
-          </Box>
-          <Grid container spacing={3} justifyContent="center">
-            {[
-              { phone: '+1 (234) 567-890', label: 'WhatsApp Principal', time: 'Lun-Vie 8am-6pm' },
-              { phone: '+0 (987) 654-321', label: 'WhatsApp Soporte', time: 'Lun-Sab 9am-8pm' },
-            ].map((contact) => (
-              <Grid item xs={12} sm={6} md={4} key={contact.phone}>
-                <Card
-                  sx={{
-                    p: 3,
-                    textAlign: 'center',
-                    borderRadius: '20px',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                  }}
-                >
-                  <IconButton
-                    href={`https://wa.me/${contact.phone.replace(/\D/g, '')}`}
-                    target="_blank"
-                    sx={{
-                      bgcolor: '#25D366',
-                      color: '#fff',
-                      width: 64,
-                      height: 64,
-                      mb: 2,
-                      '&:hover': { bgcolor: '#128C7E' },
-                    }}
-                  >
-                    <WhatsApp sx={{ fontSize: '2rem' }} />
-                  </IconButton>
-                  <Typography variant="h6" fontWeight={700}>
-                    {contact.label}
-                  </Typography>
-                  <Typography variant="body1" color="primary" fontWeight={600}>
-                    {contact.phone}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {contact.time}
-                  </Typography>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        </Container>
-      </Box>
-
+      {/* Footer */}
       <Footer />
     </Box>
   );
