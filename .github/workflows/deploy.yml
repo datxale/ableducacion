@@ -1,0 +1,38 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: 141.227.151.20
+          username: ubuntu
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: 2222
+          script: |
+            cd /home/ubuntu/ableducacion || git clone https://github.com/datxale/ableducacion.git /home/ubuntu/ableducacion
+            cd /home/ubuntu/ableducacion
+            git pull origin main
+
+            # Backend
+            cd backend
+            python3 -m venv venv || true
+            source venv/bin/activate
+            pip install -r requirements.txt
+            sudo systemctl restart ableducacion-backend || true
+
+            # Frontend
+            cd ../frontend
+            npm install
+            npm run build
+            sudo systemctl restart nginx || true
