@@ -231,29 +231,15 @@ const LandingPage = () => {
                 }}
               >
                 <Box
+                  component="img"
+                  src="/logo-circulo.png"
+                  alt="ABL Educación"
                   sx={{
-                    width: { xs: 280, sm: 360, md: 420 },
-                    height: { xs: 220, sm: 280, md: 320 },
-                    borderRadius: '24px',
-                    background: 'rgba(255,255,255,0.2)',
-                    backdropFilter: 'blur(10px)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '2px solid rgba(255,255,255,0.3)',
-                    overflow: 'hidden',
-                    position: 'relative',
+                    width: { xs: 220, sm: 280, md: 320 },
+                    height: 'auto',
+                    filter: 'drop-shadow(0 8px 30px rgba(0,0,0,0.15))',
                   }}
-                >
-                  <Typography
-                    sx={{
-                      fontSize: { xs: '4rem', md: '5rem' },
-                      textAlign: 'center',
-                    }}
-                  >
-                    👩‍🏫📱💡
-                  </Typography>
-                </Box>
+                />
               </Box>
             </Grid>
           </Grid>

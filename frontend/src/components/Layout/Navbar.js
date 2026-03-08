@@ -97,35 +97,16 @@ const Navbar = () => {
             }}
             onClick={() => navigate(isAuthenticated ? '/dashboard' : '/')}
           >
-            <Box>
-              <Typography
-                variant="h6"
-                sx={{
-                  fontWeight: 900,
-                  lineHeight: 1.1,
-                  fontSize: { xs: '1.1rem', md: '1.3rem' },
-                  letterSpacing: 1,
-                }}
-              >
-                <Box component="span" sx={{ color: '#1a1a2e' }}>
-                  ABL
-                </Box>
-                <Box component="span" sx={{ color: isLanding && !isAuthenticated ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.8)' }}>
-                  Educación
-                </Box>
-                <Box
-                  component="span"
-                  sx={{
-                    color: '#FF6B6B',
-                    fontSize: '1.4rem',
-                    ml: 0.3,
-                    verticalAlign: 'super',
-                  }}
-                >
-                  *
-                </Box>
-              </Typography>
-            </Box>
+            <Box
+              component="img"
+              src={isLanding && !isAuthenticated ? '/logo.png' : '/logo.png'}
+              alt="ABL Educación"
+              sx={{
+                height: { xs: 32, md: 40 },
+                width: 'auto',
+                filter: isLanding && !isAuthenticated ? 'none' : 'brightness(0) invert(1)',
+              }}
+            />
           </Box>
 
           {/* Public nav items (landing page) */}

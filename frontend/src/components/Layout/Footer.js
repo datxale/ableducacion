@@ -18,31 +18,17 @@ const Footer = () => {
         <Grid container spacing={4} alignItems="flex-start">
           {/* Brand */}
           <Grid item xs={12} md={5}>
-            <Typography
-              variant="h6"
-              sx={{ fontWeight: 900, mb: 1, letterSpacing: 1 }}
-            >
-              <Box component="span" sx={{ color: '#4ECDC4' }}>
-                ABL
-              </Box>
-              <Box component="span" sx={{ color: '#1a1a2e' }}>
-                Educación
-              </Box>
-              <Box
-                component="span"
-                sx={{ color: '#FF6B6B', fontSize: '1.3rem', ml: 0.3, verticalAlign: 'super' }}
-              >
-                *
-              </Box>
-            </Typography>
+            <Box
+              component="img"
+              src="/logo.png"
+              alt="ABL Educación"
+              sx={{ height: 36, width: 'auto', mb: 1 }}
+            />
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
               info@ableducacion.com
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
-              Av. Principal 123,
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
-              Lima,
+              WhatsApp: +51 929 220 076
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               Lima, Perú
