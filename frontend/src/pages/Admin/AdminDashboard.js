@@ -374,6 +374,13 @@ const AdminDashboard = () => {
                     path: '/admin/classes',
                     color: '#e91e63',
                   },
+                  {
+                    icon: '💬',
+                    title: 'Gestión de Testimonios',
+                    desc: 'Edita los testimonios de la página de inicio',
+                    path: '/admin/testimonials',
+                    color: '#ff9800',
+                  },
                 ].map((item) => (
                   <Box
                     key={item.path}

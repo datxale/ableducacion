@@ -24,6 +24,7 @@ import AdminDashboard from './pages/Admin/AdminDashboard';
 import ManageUsers from './pages/Admin/ManageUsers';
 import ManageActivities from './pages/Admin/ManageActivities';
 import ManageClasses from './pages/Admin/ManageClasses';
+import ManageTestimonials from './pages/Admin/ManageTestimonials';
 
 const AppContent = () => {
   const { loading, isAuthenticated } = useAuth();
@@ -161,6 +162,15 @@ const AppContent = () => {
             element={
               <ProtectedRoute adminOnly>
                 <ManageClasses />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/testimonials"
+            element={
+              <ProtectedRoute adminOnly>
+                <ManageTestimonials />
               </ProtectedRoute>
             }
           />

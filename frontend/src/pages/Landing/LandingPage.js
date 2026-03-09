@@ -9,36 +9,16 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import Footer from '../../components/Layout/Footer';
+import axiosInstance from '../../api/axios';
 
 /* ──────────────────────────────────────────────
-   Testimonials data
+   Default testimonials (fallback if API fails)
    ────────────────────────────────────────────── */
-const mainTestimonial = {
-  quote:
-    'ABL Educación me permite innovar en mis clases cada día',
-  rating: 5,
-  role: 'Docente de primaria, Lima',
-};
-
-const testimonials = [
-  {
-    quote:
-      'Con ABL Educación, las matemáticas ya no son difíciles. Ahora disfruto aprendiendo y resolviendo los desafíos.',
-    rating: 5,
-    role: 'Estudiante de 5.° grado, Arequipa',
-  },
-  {
-    quote:
-      'Este programa nos ayuda a alinear nuestras clases y metas con el Currículo Nacional, mientras impulsamos el uso de tecnología.',
-    rating: 5,
-    role: 'Director de una institución educativa, Cusco',
-  },
-  {
-    quote:
-      'ABL Educación nos apoya mucho al monitorear el progreso de nuestros estudiantes, permitiéndonos tomar decisiones basadas en datos reales.',
-    rating: 5,
-    role: 'Especialista pedagógico',
-  },
+const defaultTestimonials = [
+  { quote: 'ABL Educación me permite innovar en mis clases cada día', rating: 5, role: 'Docente de primaria, Lima' },
+  { quote: 'Con ABL Educación, las matemáticas ya no son difíciles. Ahora disfruto aprendiendo y resolviendo los desafíos.', rating: 5, role: 'Estudiante de 5.° grado, Arequipa' },
+  { quote: 'Este programa nos ayuda a alinear nuestras clases y metas con el Currículo Nacional, mientras impulsamos el uso de tecnología.', rating: 5, role: 'Director de una institución educativa, Cusco' },
+  { quote: 'ABL Educación nos apoya mucho al monitorear el progreso de nuestros estudiantes, permitiéndonos tomar decisiones basadas en datos reales.', rating: 5, role: 'Especialista pedagógico' },
 ];
 
 /* ──────────────────────────────────────────────
@@ -65,18 +45,28 @@ const steps = [
   },
 ];
 
-const allTestimonials = [mainTestimonial, ...testimonials];
-
 const LandingPage = () => {
   const navigate = useNavigate();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [allTestimonials, setAllTestimonials] = useState(defaultTestimonials);
 
   useEffect(() => {
+    axiosInstance.get('/testimonials/')
+      .then((res) => {
+        if (res.data && res.data.length > 0) {
+          setAllTestimonials(res.data);
+        }
+      })
+      .catch(() => { /* use defaults */ });
+  }, []);
+
+  useEffect(() => {
+    if (allTestimonials.length === 0) return;
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % allTestimonials.length);
     }, 3000);
     return () => clearInterval(timer);
-  }, []);
+  }, [allTestimonials]);
 
   return (
     <Box sx={{ overflowX: 'hidden', fontFamily: "'Nunito', sans-serif" }}>

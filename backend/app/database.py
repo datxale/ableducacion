@@ -26,6 +26,7 @@ def get_db():
 def create_tables():
     from app.models import (  # noqa: F401
         user, grade, subject, month, week,
-        activity, planning, live_class, enrollment, progress
+        activity, planning, live_class, enrollment, progress,
+        testimonial
     )
     Base.metadata.create_all(bind=engine)
