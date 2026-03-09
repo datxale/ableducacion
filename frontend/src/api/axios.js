@@ -1,6 +1,30 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const explicitApiBaseUrl = process.env.REACT_APP_API_BASE_URL?.trim();
+
+const normalizeBaseUrl = (url) => url.replace(/\/+$/, '');
+
+const getApiBaseUrl = () => {
+  if (explicitApiBaseUrl) {
+    return normalizeBaseUrl(explicitApiBaseUrl);
+  }
+
+  if (typeof window !== 'undefined') {
+    const { hostname } = window.location;
+    const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
+
+    if (isLocalHost) {
+      return 'http://localhost:8000/api';
+    }
+
+    // In production, use same-origin so reverse proxy /api works.
+    return '/api';
+  }
+
+  return 'http://localhost:8000/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,

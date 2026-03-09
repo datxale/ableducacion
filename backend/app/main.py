@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import logging
+import os
+from typing import List
 
 from app.database import create_tables
 from app.routers import (
@@ -25,6 +27,30 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+def get_cors_origins() -> List[str]:
+    configured_origins = os.getenv("CORS_ORIGINS", "").strip()
+    if configured_origins:
+        origins = [origin.strip() for origin in configured_origins.split(",") if origin.strip()]
+        if origins:
+            return origins
+
+    return [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:4173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        "http://portal.inaci.edu.pe",
+        "https://portal.inaci.edu.pe",
+        "http://pontealdia.ableducacion.com",
+        "https://pontealdia.ableducacion.com",
+    ]
+
+
+cors_origins = get_cors_origins()
+logger.info("CORS origins configurados: %s", cors_origins)
+
 app = FastAPI(
     title="ABLEducacion API",
     description="Plataforma educativa para estudiantes de 6 a 11 años",
@@ -36,13 +62,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:4173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
