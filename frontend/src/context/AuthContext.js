@@ -46,6 +46,22 @@ export const AuthProvider = ({ children }) => {
     loadUserFromStorage();
   }, [loadUserFromStorage]);
 
+  useEffect(() => {
+    if (!user) return undefined;
+
+    const sendHeartbeat = async () => {
+      try {
+        await axiosInstance.post('/auth/heartbeat');
+      } catch (err) {
+        // Ignore heartbeat errors; auth interceptor handles hard auth failures.
+      }
+    };
+
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
   const login = async (email, password) => {
     setError(null);
     try {

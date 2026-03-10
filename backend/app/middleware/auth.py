@@ -5,6 +5,7 @@ from typing import List
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.services.auth import decode_access_token
+from app.services.presence import mark_user_online
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
@@ -30,6 +31,7 @@ def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Usuario inactivo",
         )
+    mark_user_online(user.id)
     return user
 
 

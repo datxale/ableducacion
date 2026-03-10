@@ -1,15 +1,52 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
-from datetime import timedelta
-from app.database import get_db
-from app.models.user import User, UserRole
-from app.schemas.user import UserCreate, UserPublic, Token, LoginRequest
-from app.services.auth import hash_password, verify_password, create_access_token
-from app.middleware.auth import get_current_user
-from app.config import settings
+from datetime import datetime, timedelta
+from typing import List, Optional
 
-router = APIRouter(prefix="/api/auth", tags=["Autenticación"])
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.config import settings
+from app.database import get_db
+from app.middleware.auth import get_current_user, require_admin_or_docente
+from app.models.user import User, UserRole
+from app.schemas.user import LoginRequest, Token, UserCreate, UserPublic
+from app.services.auth import create_access_token, hash_password, verify_password
+from app.services.presence import get_presence_for_users, mark_user_online
+
+router = APIRouter(prefix="/api/auth", tags=["Autenticacion"])
+
+
+class PresenceItem(BaseModel):
+    user_id: int
+    is_online: bool
+    last_seen: Optional[datetime] = None
+
+
+class PresenceResponse(BaseModel):
+    items: List[PresenceItem]
+
+
+def _parse_user_ids(user_ids_raw: str) -> List[int]:
+    parsed: List[int] = []
+    for token in user_ids_raw.split(","):
+        token = token.strip()
+        if not token:
+            continue
+        if not token.isdigit():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"ID de usuario invalido: {token}",
+            )
+        parsed.append(int(token))
+
+    parsed = sorted(set(parsed))
+    if not parsed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Debe enviar al menos un user_id valido",
+        )
+    return parsed
 
 
 @router.post("/register", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
@@ -18,8 +55,9 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Ya existe un usuario con ese correo electrónico",
+            detail="Ya existe un usuario con ese correo electronico",
         )
+
     new_user = User(
         email=user_data.email,
         password_hash=hash_password(user_data.password),
@@ -42,7 +80,7 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)):
     if not user or not verify_password(login_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Correo o contraseña incorrectos",
+            detail="Correo o contrasena incorrectos",
             headers={"WWW-Authenticate": "Bearer"},
         )
     if not user.is_active:
@@ -50,6 +88,8 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Usuario inactivo. Contacte al administrador",
         )
+
+    mark_user_online(user.id)
     access_token = create_access_token(
         data={"sub": str(user.id), "email": user.email, "role": user.role.value},
         expires_delta=timedelta(minutes=settings.access_token_expire_minutes),
@@ -70,7 +110,7 @@ def login_form(
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Correo o contraseña incorrectos",
+            detail="Correo o contrasena incorrectos",
             headers={"WWW-Authenticate": "Bearer"},
         )
     if not user.is_active:
@@ -78,6 +118,8 @@ def login_form(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Usuario inactivo. Contacte al administrador",
         )
+
+    mark_user_online(user.id)
     access_token = create_access_token(
         data={"sub": str(user.id), "email": user.email, "role": user.role.value},
         expires_delta=timedelta(minutes=settings.access_token_expire_minutes),
@@ -91,7 +133,24 @@ def login_form(
 
 @router.get("/me", response_model=UserPublic)
 def get_me(current_user: User = Depends(get_current_user)):
+    mark_user_online(current_user.id)
     return current_user
+
+
+@router.post("/heartbeat", status_code=status.HTTP_204_NO_CONTENT)
+def heartbeat(current_user: User = Depends(get_current_user)):
+    mark_user_online(current_user.id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/presence", response_model=PresenceResponse)
+def get_presence(
+    user_ids: str = Query(..., description="Lista de user_id separados por coma"),
+    current_user: User = Depends(require_admin_or_docente),
+):
+    parsed_ids = _parse_user_ids(user_ids)
+    items = get_presence_for_users(parsed_ids)
+    return PresenceResponse(items=[PresenceItem(**item) for item in items])
 
 
 @router.post("/impersonate/{user_id}", response_model=Token)
@@ -125,6 +184,7 @@ def impersonate_user(
             detail="No puede impersonar un usuario inactivo",
         )
 
+    mark_user_online(target_user.id)
     access_token = create_access_token(
         data={
             "sub": str(target_user.id),
