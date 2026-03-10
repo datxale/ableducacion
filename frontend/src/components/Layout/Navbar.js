@@ -35,7 +35,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const Navbar = () => {
-  const { user, logout, isAdmin, isAuthenticated } = useAuth();
+  const { user, logout, isAdmin, isAuthenticated, isImpersonating, stopImpersonation } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
@@ -51,6 +51,15 @@ const Navbar = () => {
     logout();
     navigate('/');
     handleCloseMenu();
+  };
+
+  const handleStopImpersonation = () => {
+    const result = stopImpersonation();
+    if (result.success) {
+      navigate('/admin/users');
+    }
+    handleCloseMenu();
+    setMobileOpen(false);
   };
 
   const navItems = [
@@ -186,16 +195,30 @@ const Navbar = () => {
             {isAuthenticated ? (
               <>
                 {!isMobile && (
-                  <Chip
-                    label={roleLabel}
-                    size="small"
-                    sx={{
-                      background: roleColor,
-                      color: '#fff',
-                      fontWeight: 700,
-                      fontSize: '0.75rem',
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                    <Chip
+                      label={roleLabel}
+                      size="small"
+                      sx={{
+                        background: roleColor,
+                        color: '#fff',
+                        fontWeight: 700,
+                        fontSize: '0.75rem',
+                      }}
+                    />
+                    {isImpersonating && (
+                      <Chip
+                        label="Impersonando"
+                        size="small"
+                        sx={{
+                          background: '#ff9800',
+                          color: '#fff',
+                          fontWeight: 700,
+                          fontSize: '0.75rem',
+                        }}
+                      />
+                    )}
+                  </Box>
                 )}
                 <IconButton onClick={handleProfileMenu} sx={{ p: 0.5 }}>
                   <Avatar
@@ -238,6 +261,12 @@ const Navbar = () => {
                     <ListItemIcon><Dashboard fontSize="small" /></ListItemIcon>
                     Dashboard
                   </MenuItem>
+                  {isImpersonating && (
+                    <MenuItem onClick={handleStopImpersonation}>
+                      <ListItemIcon><AdminPanelSettings fontSize="small" /></ListItemIcon>
+                      Volver a Admin
+                    </MenuItem>
+                  )}
                   <Divider />
                   <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
                     <ListItemIcon><Logout fontSize="small" color="error" /></ListItemIcon>
@@ -335,6 +364,17 @@ const Navbar = () => {
               </ListItemButton>
             </ListItem>
           ))}
+          {isImpersonating && (
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={handleStopImpersonation}
+                sx={{ borderRadius: '12px', mx: 1, my: 0.25 }}
+              >
+                <ListItemIcon><AdminPanelSettings color="warning" /></ListItemIcon>
+                <ListItemText primary="Volver a Admin" primaryTypographyProps={{ fontWeight: 600 }} />
+              </ListItemButton>
+            </ListItem>
+          )}
           <Divider sx={{ my: 1 }} />
           <ListItem disablePadding>
             <ListItemButton

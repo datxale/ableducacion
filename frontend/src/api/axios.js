@@ -54,6 +54,8 @@ axiosInstance.interceptors.response.use(
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
       localStorage.removeItem('user');
+      localStorage.removeItem('impersonation_original_access_token');
+      localStorage.removeItem('impersonation_original_user');
       window.location.href = '/login';
     }
     return Promise.reject(error);

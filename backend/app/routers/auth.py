@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from app.database import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.user import UserCreate, UserPublic, Token, LoginRequest
 from app.services.auth import hash_password, verify_password, create_access_token
 from app.middleware.auth import get_current_user
@@ -92,3 +92,50 @@ def login_form(
 @router.get("/me", response_model=UserPublic)
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.post("/impersonate/{user_id}", response_model=Token)
+def impersonate_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != UserRole.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo un administrador puede impersonar usuarios",
+        )
+
+    if current_user.id == user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No puede impersonar su propia cuenta",
+        )
+
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado",
+        )
+
+    if not target_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No puede impersonar un usuario inactivo",
+        )
+
+    access_token = create_access_token(
+        data={
+            "sub": str(target_user.id),
+            "email": target_user.email,
+            "role": target_user.role.value,
+            "impersonated_by": str(current_user.id),
+        },
+        expires_delta=timedelta(minutes=settings.access_token_expire_minutes),
+    )
+    return Token(
+        access_token=access_token,
+        token_type="bearer",
+        user=UserPublic.model_validate(target_user),
+    )

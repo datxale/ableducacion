@@ -33,8 +33,8 @@ import {
 } from '@mui/material';
 import {
   Home,
-  AdminPanelSettings,
   Add,
+  Login,
   Edit,
   Delete,
   Search,
@@ -44,6 +44,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../../api/axios';
+import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Footer from '../../components/Layout/Footer';
 
@@ -55,10 +56,12 @@ const roleColors = {
 
 const ManageUsers = () => {
   const navigate = useNavigate();
+  const { user: currentUser, beginImpersonation } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [impersonatingUserId, setImpersonatingUserId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -158,12 +161,38 @@ const ManageUsers = () => {
     }
   };
 
+  const handleImpersonate = async (targetUser) => {
+    setError('');
+    setSuccess('');
+    setImpersonatingUserId(targetUser.id);
+
+    const result = await beginImpersonation(targetUser.id);
+    if (result.success) {
+      const targetName = targetUser.full_name || targetUser.username || targetUser.email;
+      setSuccess(`Ahora estás impersonando a ${targetName}.`);
+      navigate('/dashboard');
+    } else {
+      setError(result.error || 'No se pudo impersonar el usuario.');
+    }
+
+    setImpersonatingUserId(null);
+  };
+
   if (loading) return <LoadingSpinner message="Cargando usuarios..." />;
+
+  const getDisplayName = (u) => {
+    if (u.full_name) return u.full_name;
+    if (u.first_name || u.last_name) return `${u.first_name || ''} ${u.last_name || ''}`.trim();
+    if (u.username) return u.username;
+    return u.email || 'Sin nombre';
+  };
 
   const filteredUsers = users.filter(
     (u) =>
+      getDisplayName(u).toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.last_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -273,6 +302,8 @@ const ManageUsers = () => {
                 ) : (
                   filteredUsers.map((user) => {
                     const roleInfo = roleColors[user.role] || roleColors.estudiante;
+                    const displayName = getDisplayName(user);
+                    const avatarLetter = (displayName || 'U')[0]?.toUpperCase();
                     return (
                       <TableRow
                         key={user.id}
@@ -290,16 +321,14 @@ const ManageUsers = () => {
                                 fontWeight: 700,
                               }}
                             >
-                              {(user.first_name || user.username)?.[0]?.toUpperCase()}
+                              {avatarLetter}
                             </Avatar>
                             <Box>
                               <Typography variant="body2" fontWeight={600}>
-                                {user.first_name
-                                  ? `${user.first_name} ${user.last_name || ''}`
-                                  : user.username}
+                                {displayName}
                               </Typography>
                               <Typography variant="caption" color="text.secondary">
-                                @{user.username}
+                                {user.username ? `@${user.username}` : user.email}
                               </Typography>
                             </Box>
                           </Box>
@@ -333,6 +362,22 @@ const ManageUsers = () => {
                         </TableCell>
                         <TableCell sx={{ textAlign: 'center' }}>
                           <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                            <Tooltip title="Impersonar (entrar como este usuario)">
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  disabled={
+                                    user.id === currentUser?.id ||
+                                    user.is_active === false ||
+                                    impersonatingUserId === user.id
+                                  }
+                                  onClick={() => handleImpersonate(user)}
+                                  sx={{ color: '#5e35b1', bgcolor: '#ede7f6', '&:hover': { bgcolor: '#d1c4e9' } }}
+                                >
+                                  {impersonatingUserId === user.id ? <CircularProgress size={14} /> : <Login fontSize="small" />}
+                                </IconButton>
+                              </span>
+                            </Tooltip>
                             <Tooltip title="Editar">
                               <IconButton
                                 size="small"
