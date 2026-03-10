@@ -50,7 +50,7 @@ import {
   Wifi,
   WifiOff,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import axiosInstance from '../../api/axios';
 import Footer from '../../components/Layout/Footer';
@@ -78,8 +78,11 @@ const defaultForm = {
   is_active: true,
 };
 
+const getTabFromPath = (pathname = '') => (pathname.startsWith('/admin/mirrors') ? 1 : 0);
+
 const ManageUsers = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user: currentUser, beginImpersonation } = useAuth();
 
   const [users, setUsers] = useState([]);
@@ -87,7 +90,7 @@ const ManageUsers = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState(() => getTabFromPath(location.pathname));
   const [searchQuery, setSearchQuery] = useState('');
 
   const [presenceLoading, setPresenceLoading] = useState(false);
@@ -178,12 +181,24 @@ const ManageUsers = () => {
   }, [fetchUsers]);
 
   useEffect(() => {
+    setActiveTab(getTabFromPath(location.pathname));
+  }, [location.pathname]);
+
+  useEffect(() => {
     if (!users.length) return undefined;
 
     fetchPresence(users);
     const interval = setInterval(() => fetchPresence(users, { silent: true }), 15000);
     return () => clearInterval(interval);
   }, [users, fetchPresence]);
+
+  const handleTabChange = (_, value) => {
+    setActiveTab(value);
+    const nextPath = value === 1 ? '/admin/mirrors' : '/admin/users';
+    if (location.pathname !== nextPath) {
+      navigate(nextPath, { replace: true });
+    }
+  };
 
   const openCreateDialog = () => {
     setSelectedUser(null);
@@ -339,7 +354,7 @@ const ManageUsers = () => {
             >
               Admin
             </Link>
-            <Typography sx={{ color: '#fff', fontWeight: 600, fontSize: '0.9rem' }}>Usuarios</Typography>
+            <Typography sx={{ color: '#fff', fontWeight: 600, fontSize: '0.9rem' }}>{activeTab === 1 ? 'Espejos' : 'Usuarios'}</Typography>
           </Breadcrumbs>
 
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
@@ -384,7 +399,7 @@ const ManageUsers = () => {
         <Paper sx={{ borderRadius: '20px', boxShadow: '0 4px 20px rgba(0,0,0,0.07)', mb: 2 }}>
           <Tabs
             value={activeTab}
-            onChange={(_, value) => setActiveTab(value)}
+            onChange={handleTabChange}
             sx={{ px: 1.5, pt: 1.5, '& .MuiTabs-indicator': { height: 3, borderRadius: 999 } }}
           >
             <Tab icon={<People fontSize="small" />} iconPosition="start" label="Usuarios" />

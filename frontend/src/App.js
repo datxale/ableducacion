@@ -150,6 +150,14 @@ const AppContent = () => {
             }
           />
           <Route
+            path="/admin/mirrors"
+            element={
+              <ProtectedRoute adminOnly>
+                <ManageUsers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/admin/activities"
             element={
               <ProtectedRoute adminOnly>

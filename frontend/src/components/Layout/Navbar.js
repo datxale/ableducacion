@@ -27,6 +27,7 @@ import {
   VideoCall,
   BarChart,
   AdminPanelSettings,
+  SwapHoriz,
   Logout,
   CalendarMonth,
   Close,
@@ -72,12 +73,19 @@ const Navbar = () => {
 
   if (isAdmin) {
     navItems.push({ label: 'Admin', path: '/admin', icon: <AdminPanelSettings /> });
+    navItems.push({ label: 'Espejos', path: '/admin/mirrors', icon: <SwapHoriz /> });
   }
 
   const roleColor = isAdmin ? '#9c27b0' : user?.role === 'docente' ? '#1976d2' : '#4caf50';
   const roleLabel = isAdmin ? 'Admin' : user?.role === 'docente' ? 'Docente' : 'Estudiante';
 
   const isLanding = location.pathname === '/';
+  const isNavItemActive = (itemPath) => {
+    if (itemPath === '/admin') {
+      return location.pathname === '/admin';
+    }
+    return location.pathname.startsWith(itemPath);
+  };
 
   return (
     <>
@@ -171,8 +179,8 @@ const Navbar = () => {
                     py: 1,
                     borderRadius: '10px',
                     fontSize: '0.85rem',
-                    fontWeight: location.pathname.startsWith(item.path) ? 800 : 600,
-                    background: location.pathname.startsWith(item.path)
+                    fontWeight: isNavItemActive(item.path) ? 800 : 600,
+                    background: isNavItemActive(item.path)
                       ? 'rgba(255,255,255,0.25)'
                       : 'transparent',
                     boxShadow: 'none',
@@ -347,7 +355,7 @@ const Navbar = () => {
             <ListItem key={item.path} disablePadding>
               <ListItemButton
                 onClick={() => { navigate(item.path); setMobileOpen(false); }}
-                selected={location.pathname.startsWith(item.path)}
+                selected={isNavItemActive(item.path)}
                 sx={{
                   borderRadius: '12px',
                   mx: 1,
