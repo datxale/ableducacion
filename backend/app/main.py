@@ -19,6 +19,7 @@ from app.routers import (
     enrollments,
     progress,
     testimonials,
+    news,
 )
 
 logging.basicConfig(
@@ -80,6 +81,7 @@ app.include_router(live_classes.router)
 app.include_router(enrollments.router)
 app.include_router(progress.router)
 app.include_router(testimonials.router)
+app.include_router(news.router)
 
 
 @app.on_event("startup")

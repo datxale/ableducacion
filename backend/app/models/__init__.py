@@ -8,6 +8,7 @@ from app.models.planning import Planning
 from app.models.live_class import LiveClass
 from app.models.enrollment import Enrollment
 from app.models.progress import Progress
+from app.models.news import NewsPost
 
 __all__ = [
     "User",
@@ -20,4 +21,5 @@ __all__ = [
     "LiveClass",
     "Enrollment",
     "Progress",
+    "NewsPost",
 ]

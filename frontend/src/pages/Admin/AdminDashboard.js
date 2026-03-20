@@ -1,37 +1,47 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Alert,
+  Avatar,
   Box,
-  Container,
-  Typography,
-  Grid,
+  Button,
   Card,
   CardContent,
-  Button,
-  Avatar,
-  Paper,
+  Chip,
+  Container,
+  Divider,
+  Grid,
   List,
   ListItem,
-  ListItemText,
   ListItemAvatar,
-  Divider,
-  Alert,
-  Chip,
+  ListItemText,
+  Paper,
+  Typography,
 } from '@mui/material';
 import {
-  People,
-  School,
-  VideoCall,
-  Activity,
   AdminPanelSettings,
   ArrowForward,
   MenuBook,
-  TrendingUp,
-  Add,
+  People,
+  School,
+  VideoCall,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+
 import axiosInstance from '../../api/axios';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Footer from '../../components/Layout/Footer';
+
+const getUserInitial = (user) => {
+  const source = user?.first_name || user?.username || 'U';
+  return source.charAt(0).toUpperCase();
+};
+
+const getUserDisplayName = (user) => {
+  if (user?.first_name) {
+    return `${user.first_name} ${user.last_name || ''}`.trim();
+  }
+  return user?.username || 'Usuario';
+};
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -54,28 +64,33 @@ const AdminDashboard = () => {
           axiosInstance.get('/activities/').catch(() => ({ data: { count: 0 } })),
           axiosInstance.get('/live-classes/').catch(() => ({ data: { count: 0 } })),
         ]);
+
         setStats({
           users: usersRes.data?.count || (Array.isArray(usersRes.data) ? usersRes.data.length : 0),
           grades: Array.isArray(gradesRes.data) ? gradesRes.data.length : (gradesRes.data?.count || 0),
           activities: activitiesRes.data?.count || (Array.isArray(activitiesRes.data) ? activitiesRes.data.length : 0),
           liveClasses: classesRes.data?.count || (Array.isArray(classesRes.data) ? classesRes.data.length : 0),
         });
-        setRecentUsers(usersRes.data?.results?.slice(0, 5) || (Array.isArray(usersRes.data) ? usersRes.data.slice(0, 5) : []));
+        setRecentUsers(
+          usersRes.data?.results?.slice(0, 5) ||
+          (Array.isArray(usersRes.data) ? usersRes.data.slice(0, 5) : [])
+        );
       } catch (err) {
         setError('Error al cargar datos del panel admin.');
-        console.error(err);
       } finally {
         setLoading(false);
       }
     };
+
     fetchData();
   }, []);
 
-  if (loading) return <LoadingSpinner message="Cargando panel de administración..." />;
+  if (loading) {
+    return <LoadingSpinner message="Cargando panel de administracion..." />;
+  }
 
   const adminCards = [
     {
-      icon: <People sx={{ fontSize: '2.5rem', color: '#1976d2' }} />,
       title: 'Usuarios',
       value: stats.users,
       desc: 'Estudiantes y docentes',
@@ -83,9 +98,9 @@ const AdminDashboard = () => {
       bg: 'linear-gradient(135deg, #e3f2fd, #bbdefb)',
       path: '/admin/users',
       emoji: '👥',
+      icon: <People sx={{ fontSize: '2.5rem', color: '#1976d2' }} />,
     },
     {
-      icon: <School sx={{ fontSize: '2.5rem', color: '#4caf50' }} />,
       title: 'Grados',
       value: stats.grades,
       desc: 'Grados configurados',
@@ -93,9 +108,9 @@ const AdminDashboard = () => {
       bg: 'linear-gradient(135deg, #e8f5e9, #c8e6c9)',
       path: '/grades',
       emoji: '📚',
+      icon: <School sx={{ fontSize: '2.5rem', color: '#4caf50' }} />,
     },
     {
-      icon: <MenuBook sx={{ fontSize: '2.5rem', color: '#9c27b0' }} />,
       title: 'Actividades',
       value: stats.activities,
       desc: 'Fichas y videos',
@@ -103,9 +118,9 @@ const AdminDashboard = () => {
       bg: 'linear-gradient(135deg, #f3e5f5, #e1bee7)',
       path: '/admin/activities',
       emoji: '📋',
+      icon: <MenuBook sx={{ fontSize: '2.5rem', color: '#9c27b0' }} />,
     },
     {
-      icon: <VideoCall sx={{ fontSize: '2.5rem', color: '#e91e63' }} />,
       title: 'Clases en Vivo',
       value: stats.liveClasses,
       desc: 'Sesiones programadas',
@@ -113,6 +128,7 @@ const AdminDashboard = () => {
       bg: 'linear-gradient(135deg, #fce4ec, #f8bbd9)',
       path: '/admin/classes',
       emoji: '🎥',
+      icon: <VideoCall sx={{ fontSize: '2.5rem', color: '#e91e63' }} />,
     },
   ];
 
@@ -120,12 +136,50 @@ const AdminDashboard = () => {
     { label: 'Gestionar usuarios', icon: '👥', path: '/admin/users', color: '#1976d2' },
     { label: 'Subir actividades', icon: '📤', path: '/admin/activities', color: '#9c27b0' },
     { label: 'Programar clase', icon: '🎥', path: '/admin/classes', color: '#e91e63' },
+    { label: 'Editar noticias', icon: '📰', path: '/admin/news', color: '#ef6c00' },
     { label: 'Ver grados', icon: '📚', path: '/grades', color: '#4caf50' },
+  ];
+
+  const modules = [
+    {
+      icon: '👥',
+      title: 'Gestion de Usuarios',
+      desc: 'Administra docentes y estudiantes',
+      path: '/admin/users',
+      color: '#1976d2',
+    },
+    {
+      icon: '📋',
+      title: 'Gestion de Actividades',
+      desc: 'Sube fichas y videos educativos',
+      path: '/admin/activities',
+      color: '#9c27b0',
+    },
+    {
+      icon: '🎥',
+      title: 'Gestion de Clases en Vivo',
+      desc: 'Programa sesiones y videollamadas',
+      path: '/admin/classes',
+      color: '#e91e63',
+    },
+    {
+      icon: '📰',
+      title: 'Gestion de Noticias',
+      desc: 'Administra las noticias de la landing',
+      path: '/admin/news',
+      color: '#ef6c00',
+    },
+    {
+      icon: '💬',
+      title: 'Gestion de Testimonios',
+      desc: 'Edita los testimonios de la pagina de inicio',
+      path: '/admin/testimonials',
+      color: '#ff9800',
+    },
   ];
 
   return (
     <Box sx={{ background: '#f5f7fa', minHeight: '100vh' }}>
-      {/* Header */}
       <Box
         sx={{
           background: 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)',
@@ -176,7 +230,6 @@ const AdminDashboard = () => {
           </Alert>
         )}
 
-        {/* Stats cards */}
         <Grid container spacing={2.5} sx={{ mb: 4 }}>
           {adminCards.map((card) => (
             <Grid item xs={6} md={3} key={card.title}>
@@ -206,7 +259,6 @@ const AdminDashboard = () => {
           ))}
         </Grid>
 
-        {/* Quick actions */}
         <Paper
           sx={{
             p: 3,
@@ -216,11 +268,11 @@ const AdminDashboard = () => {
           }}
         >
           <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
-            ⚡ Acciones Rápidas
+            Acciones Rapidas
           </Typography>
           <Grid container spacing={2}>
             {quickActions.map((action) => (
-              <Grid item xs={6} sm={3} key={action.label}>
+              <Grid item xs={6} sm={4} md={3} key={action.label}>
                 <Button
                   fullWidth
                   variant="contained"
@@ -248,7 +300,6 @@ const AdminDashboard = () => {
         </Paper>
 
         <Grid container spacing={3}>
-          {/* Recent users */}
           <Grid item xs={12} md={6}>
             <Paper
               sx={{
@@ -259,7 +310,7 @@ const AdminDashboard = () => {
             >
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h6" fontWeight={700}>
-                  👥 Usuarios recientes
+                  Usuarios recientes
                 </Typography>
                 <Button
                   size="small"
@@ -270,6 +321,7 @@ const AdminDashboard = () => {
                   Ver todos
                 </Button>
               </Box>
+
               {recentUsers.length === 0 ? (
                 <Box sx={{ textAlign: 'center', py: 3 }}>
                   <Typography sx={{ fontSize: '2rem', mb: 1 }}>👤</Typography>
@@ -294,16 +346,14 @@ const AdminDashboard = () => {
                               fontWeight: 700,
                             }}
                           >
-                            {(user.first_name || user.username)?.[0]?.toUpperCase()}
+                            {getUserInitial(user)}
                           </Avatar>
                         </ListItemAvatar>
                         <ListItemText
                           primary={
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                               <Typography variant="body2" fontWeight={600}>
-                                {user.first_name
-                                  ? `${user.first_name} ${user.last_name || ''}`
-                                  : user.username}
+                                {getUserDisplayName(user)}
                               </Typography>
                               <Chip
                                 label={user.role || 'estudiante'}
@@ -339,7 +389,6 @@ const AdminDashboard = () => {
             </Paper>
           </Grid>
 
-          {/* Admin nav */}
           <Grid item xs={12} md={6}>
             <Paper
               sx={{
@@ -349,39 +398,10 @@ const AdminDashboard = () => {
               }}
             >
               <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
-                ⚙️ Módulos de gestión
+                Modulos de gestion
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                {[
-                  {
-                    icon: '👥',
-                    title: 'Gestión de Usuarios',
-                    desc: 'Administra docentes y estudiantes',
-                    path: '/admin/users',
-                    color: '#1976d2',
-                  },
-                  {
-                    icon: '📋',
-                    title: 'Gestión de Actividades',
-                    desc: 'Sube fichas y videos educativos',
-                    path: '/admin/activities',
-                    color: '#9c27b0',
-                  },
-                  {
-                    icon: '🎥',
-                    title: 'Gestión de Clases en Vivo',
-                    desc: 'Programa sesiones y videollamadas',
-                    path: '/admin/classes',
-                    color: '#e91e63',
-                  },
-                  {
-                    icon: '💬',
-                    title: 'Gestión de Testimonios',
-                    desc: 'Edita los testimonios de la página de inicio',
-                    path: '/admin/testimonials',
-                    color: '#ff9800',
-                  },
-                ].map((item) => (
+                {modules.map((item) => (
                   <Box
                     key={item.path}
                     onClick={() => navigate(item.path)}

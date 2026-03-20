@@ -5,7 +5,7 @@ echo "=== Setting up ABL Educacion on VPS ==="
 
 APP_DIR="${APP_DIR:-/home/ubuntu/ableducacion}"
 REPO_URL="${REPO_URL:-https://github.com/datxale/ableducacion.git}"
-DOMAIN="${DOMAIN:-portal.inaci.edu.pe}"
+DOMAIN="${DOMAIN:-pontealdia.ableducacion.com}"
 PUBLIC_IP="${PUBLIC_IP:-141.227.151.20}"
 DB_NAME="${DB_NAME:-ableducacion}"
 DB_USER="${DB_USER:-ableducacion}"

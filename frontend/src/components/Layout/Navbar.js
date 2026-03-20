@@ -1,38 +1,39 @@
 import React, { useState } from 'react';
 import {
   AppBar,
-  Toolbar,
-  Typography,
-  Button,
-  IconButton,
-  Box,
   Avatar,
-  Menu,
-  MenuItem,
-  Divider,
+  Box,
+  Button,
   Chip,
-  useMediaQuery,
-  useTheme,
+  Divider,
   Drawer,
+  IconButton,
   List,
   ListItem,
+  ListItemButton,
   ListItemIcon,
   ListItemText,
-  ListItemButton,
+  Menu,
+  MenuItem,
+  Toolbar,
+  Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
-  Menu as MenuIcon,
-  Dashboard,
-  School,
-  VideoCall,
-  BarChart,
   AdminPanelSettings,
-  SwapHoriz,
-  Logout,
+  BarChart,
   CalendarMonth,
   Close,
+  Dashboard,
+  Logout,
+  Menu as MenuIcon,
+  School,
+  SwapHoriz,
+  VideoCall,
 } from '@mui/icons-material';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+
 import { useAuth } from '../../context/AuthContext';
 
 const Navbar = () => {
@@ -45,6 +46,12 @@ const Navbar = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const publicNavItems = [
+    { label: 'Inicio', hash: '' },
+    { label: 'Quienes Somos', hash: '#quienes-somos' },
+    { label: 'Noticias', hash: '#noticias' },
+  ];
+
   const handleProfileMenu = (event) => setAnchorEl(event.currentTarget);
   const handleCloseMenu = () => setAnchorEl(null);
 
@@ -52,6 +59,7 @@ const Navbar = () => {
     logout();
     navigate('/');
     handleCloseMenu();
+    setMobileOpen(false);
   };
 
   const handleStopImpersonation = () => {
@@ -63,10 +71,18 @@ const Navbar = () => {
     setMobileOpen(false);
   };
 
+  const handlePublicNavigation = (hash = '') => {
+    navigate({
+      pathname: '/inicio',
+      hash,
+    });
+    setMobileOpen(false);
+  };
+
   const navItems = [
     { label: 'Dashboard', path: '/dashboard', icon: <Dashboard /> },
     { label: 'Grados', path: '/grades', icon: <School /> },
-    { label: 'Planificación', path: '/planning', icon: <CalendarMonth /> },
+    { label: 'Planificacion', path: '/planning', icon: <CalendarMonth /> },
     { label: 'Clases en Vivo', path: '/live-classes', icon: <VideoCall /> },
     { label: 'Progreso', path: '/progress', icon: <BarChart /> },
   ];
@@ -78,13 +94,23 @@ const Navbar = () => {
 
   const roleColor = isAdmin ? '#9c27b0' : user?.role === 'docente' ? '#1976d2' : '#4caf50';
   const roleLabel = isAdmin ? 'Admin' : user?.role === 'docente' ? 'Docente' : 'Estudiante';
+  const isLanding = location.pathname === '/' || location.pathname === '/inicio';
 
-  const isLanding = location.pathname === '/';
   const isNavItemActive = (itemPath) => {
     if (itemPath === '/admin') {
       return location.pathname === '/admin';
     }
     return location.pathname.startsWith(itemPath);
+  };
+
+  const isPublicNavActive = (hash) => {
+    if (location.pathname !== '/inicio' && location.pathname !== '/') {
+      return false;
+    }
+    if (!hash) {
+      return !location.hash;
+    }
+    return location.hash === hash;
   };
 
   return (
@@ -103,7 +129,6 @@ const Navbar = () => {
         }}
       >
         <Toolbar sx={{ px: { xs: 2, md: 4 } }}>
-          {/* Logo */}
           <Box
             sx={{
               display: 'flex',
@@ -112,12 +137,12 @@ const Navbar = () => {
               flexGrow: { xs: 1, md: 0 },
               mr: { md: 4 },
             }}
-            onClick={() => navigate(isAuthenticated ? '/dashboard' : '/')}
+            onClick={() => navigate(isAuthenticated ? '/dashboard' : '/inicio')}
           >
             <Box
               component="img"
-              src={isLanding && !isAuthenticated ? '/logo.png' : '/logo.png'}
-              alt="ABL Educación"
+              src="/logo.png"
+              alt="ABL Educacion"
               sx={{
                 height: { xs: 32, md: 40 },
                 width: 'auto',
@@ -126,46 +151,35 @@ const Navbar = () => {
             />
           </Box>
 
-          {/* Public nav items (landing page) */}
           {!isAuthenticated && !isMobile && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexGrow: 1 }}>
-              <Button
-                onClick={() => navigate('/')}
-                sx={{
-                  color: '#1a1a2e',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  fontSize: '0.9rem',
-                  boxShadow: 'none',
-                  '&:hover': {
-                    background: 'rgba(0,0,0,0.05)',
+              {publicNavItems.map((item) => (
+                <Button
+                  key={item.label}
+                  onClick={() => handlePublicNavigation(item.hash)}
+                  sx={{
+                    color: '#1a1a2e',
+                    fontWeight: 700,
+                    textTransform: 'none',
+                    fontSize: '0.95rem',
+                    borderRadius: '18px',
+                    px: 2.2,
+                    py: 1.1,
+                    background: isPublicNavActive(item.hash) ? 'rgba(255,255,255,0.16)' : 'transparent',
                     boxShadow: 'none',
-                    transform: 'none',
-                  },
-                }}
-              >
-                Inicio
-              </Button>
-              <Button
-                sx={{
-                  color: '#1a1a2e',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  fontSize: '0.9rem',
-                  boxShadow: 'none',
-                  '&:hover': {
-                    background: 'rgba(0,0,0,0.05)',
-                    boxShadow: 'none',
-                    transform: 'none',
-                  },
-                }}
-              >
-                Centro de Ayuda
-              </Button>
+                    '&:hover': {
+                      background: 'rgba(255,255,255,0.14)',
+                      boxShadow: 'none',
+                      transform: 'none',
+                    },
+                  }}
+                >
+                  {item.label}
+                </Button>
+              ))}
             </Box>
           )}
 
-          {/* Authenticated desktop nav */}
           {isAuthenticated && !isMobile && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexGrow: 1 }}>
               {navItems.map((item) => (
@@ -198,7 +212,6 @@ const Navbar = () => {
             </Box>
           )}
 
-          {/* Right side */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 'auto' }}>
             {isAuthenticated ? (
               <>
@@ -278,7 +291,7 @@ const Navbar = () => {
                   <Divider />
                   <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
                     <ListItemIcon><Logout fontSize="small" color="error" /></ListItemIcon>
-                    Cerrar Sesión
+                    Cerrar Sesion
                   </MenuItem>
                 </Menu>
 
@@ -311,14 +324,13 @@ const Navbar = () => {
                   },
                 }}
               >
-                Portal Docente
+                Ingresar
               </Button>
             )}
           </Box>
         </Toolbar>
       </AppBar>
 
-      {/* Mobile Drawer */}
       <Drawer
         anchor="right"
         open={mobileOpen}
@@ -336,64 +348,82 @@ const Navbar = () => {
           </IconButton>
         </Box>
         <Divider />
-        <Box sx={{ p: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
-            <Avatar sx={{ bgcolor: 'primary.main', fontWeight: 700 }}>
-              {user?.first_name?.[0] || user?.username?.[0] || 'U'}
-            </Avatar>
-            <Box>
-              <Typography variant="subtitle2" fontWeight={700}>
-                {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : user?.username}
-              </Typography>
-              <Chip label={roleLabel} size="small" sx={{ bgcolor: roleColor, color: '#fff', fontWeight: 700, fontSize: '0.7rem' }} />
+
+        {isAuthenticated ? (
+          <>
+            <Box sx={{ p: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                <Avatar sx={{ bgcolor: 'primary.main', fontWeight: 700 }}>
+                  {user?.first_name?.[0] || user?.username?.[0] || 'U'}
+                </Avatar>
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={700}>
+                    {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : user?.username}
+                  </Typography>
+                  <Chip label={roleLabel} size="small" sx={{ bgcolor: roleColor, color: '#fff', fontWeight: 700, fontSize: '0.7rem' }} />
+                </Box>
+              </Box>
             </Box>
-          </Box>
-        </Box>
-        <Divider />
-        <List>
-          {navItems.map((item) => (
-            <ListItem key={item.path} disablePadding>
-              <ListItemButton
-                onClick={() => { navigate(item.path); setMobileOpen(false); }}
-                selected={isNavItemActive(item.path)}
-                sx={{
-                  borderRadius: '12px',
-                  mx: 1,
-                  my: 0.25,
-                  '&.Mui-selected': {
-                    background: 'linear-gradient(135deg, #1976d2, #42a5f5)',
-                    color: '#fff',
-                    '& .MuiListItemIcon-root': { color: '#fff' },
-                  },
-                }}
-              >
-                <ListItemIcon>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: 600 }} />
-              </ListItemButton>
-            </ListItem>
-          ))}
-          {isImpersonating && (
-            <ListItem disablePadding>
-              <ListItemButton
-                onClick={handleStopImpersonation}
-                sx={{ borderRadius: '12px', mx: 1, my: 0.25 }}
-              >
-                <ListItemIcon><AdminPanelSettings color="warning" /></ListItemIcon>
-                <ListItemText primary="Volver a Admin" primaryTypographyProps={{ fontWeight: 600 }} />
-              </ListItemButton>
-            </ListItem>
-          )}
-          <Divider sx={{ my: 1 }} />
-          <ListItem disablePadding>
-            <ListItemButton
-              onClick={() => { handleLogout(); setMobileOpen(false); }}
-              sx={{ borderRadius: '12px', mx: 1, color: 'error.main' }}
-            >
-              <ListItemIcon><Logout color="error" /></ListItemIcon>
-              <ListItemText primary="Cerrar Sesión" primaryTypographyProps={{ fontWeight: 600 }} />
-            </ListItemButton>
-          </ListItem>
-        </List>
+            <Divider />
+            <List>
+              {navItems.map((item) => (
+                <ListItem key={item.path} disablePadding>
+                  <ListItemButton
+                    onClick={() => { navigate(item.path); setMobileOpen(false); }}
+                    selected={isNavItemActive(item.path)}
+                    sx={{
+                      borderRadius: '12px',
+                      mx: 1,
+                      my: 0.25,
+                      '&.Mui-selected': {
+                        background: 'linear-gradient(135deg, #1976d2, #42a5f5)',
+                        color: '#fff',
+                        '& .MuiListItemIcon-root': { color: '#fff' },
+                      },
+                    }}
+                  >
+                    <ListItemIcon>{item.icon}</ListItemIcon>
+                    <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: 600 }} />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+              {isImpersonating && (
+                <ListItem disablePadding>
+                  <ListItemButton
+                    onClick={handleStopImpersonation}
+                    sx={{ borderRadius: '12px', mx: 1, my: 0.25 }}
+                  >
+                    <ListItemIcon><AdminPanelSettings color="warning" /></ListItemIcon>
+                    <ListItemText primary="Volver a Admin" primaryTypographyProps={{ fontWeight: 600 }} />
+                  </ListItemButton>
+                </ListItem>
+              )}
+              <Divider sx={{ my: 1 }} />
+              <ListItem disablePadding>
+                <ListItemButton
+                  onClick={() => { handleLogout(); setMobileOpen(false); }}
+                  sx={{ borderRadius: '12px', mx: 1, color: 'error.main' }}
+                >
+                  <ListItemIcon><Logout color="error" /></ListItemIcon>
+                  <ListItemText primary="Cerrar Sesion" primaryTypographyProps={{ fontWeight: 600 }} />
+                </ListItemButton>
+              </ListItem>
+            </List>
+          </>
+        ) : (
+          <List>
+            {publicNavItems.map((item) => (
+              <ListItem key={item.label} disablePadding>
+                <ListItemButton
+                  onClick={() => handlePublicNavigation(item.hash)}
+                  sx={{ borderRadius: '12px', mx: 1, my: 0.25 }}
+                >
+                  <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: 600 }} />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        )}
       </Drawer>
     </>
   );

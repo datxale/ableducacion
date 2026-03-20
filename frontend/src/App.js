@@ -24,6 +24,7 @@ import AdminDashboard from './pages/Admin/AdminDashboard';
 import ManageUsers from './pages/Admin/ManageUsers';
 import ManageActivities from './pages/Admin/ManageActivities';
 import ManageClasses from './pages/Admin/ManageClasses';
+import ManageNews from './pages/Admin/ManageNews';
 import ManageTestimonials from './pages/Admin/ManageTestimonials';
 
 const AppContent = () => {
@@ -49,6 +50,7 @@ const AppContent = () => {
             path="/"
             element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage />}
           />
+          <Route path="/inicio" element={<LandingPage />} />
           <Route
             path="/login"
             element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />}
@@ -179,6 +181,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute adminOnly>
                 <ManageTestimonials />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/news"
+            element={
+              <ProtectedRoute adminOnly>
+                <ManageNews />
               </ProtectedRoute>
             }
           />

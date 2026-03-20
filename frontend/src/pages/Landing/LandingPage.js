@@ -1,80 +1,161 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Box,
-  Container,
-  Typography,
   Button,
+  Chip,
+  Container,
   Grid,
-  Rating,
+  Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import Footer from '../../components/Layout/Footer';
+import { useLocation, useNavigate } from 'react-router-dom';
+
 import axiosInstance from '../../api/axios';
+import Footer from '../../components/Layout/Footer';
 
-/* ──────────────────────────────────────────────
-   Default testimonials (fallback if API fails)
-   ────────────────────────────────────────────── */
-const defaultTestimonials = [
-  { quote: 'ABL Educación me permite innovar en mis clases cada día', rating: 5, role: 'Docente de primaria, Lima' },
-  { quote: 'Con ABL Educación, las matemáticas ya no son difíciles. Ahora disfruto aprendiendo y resolviendo los desafíos.', rating: 5, role: 'Estudiante de 5.° grado, Arequipa' },
-  { quote: 'Este programa nos ayuda a alinear nuestras clases y metas con el Currículo Nacional, mientras impulsamos el uso de tecnología.', rating: 5, role: 'Director de una institución educativa, Cusco' },
-  { quote: 'ABL Educación nos apoya mucho al monitorear el progreso de nuestros estudiantes, permitiéndonos tomar decisiones basadas en datos reales.', rating: 5, role: 'Especialista pedagógico' },
-];
-
-/* ──────────────────────────────────────────────
-   Steps data
-   ────────────────────────────────────────────── */
 const steps = [
   {
     number: 1,
     title: 'Crea tus aulas e inscribe a tus estudiantes',
-    desc: 'Regístrate en ABL Educación, ingresa al Portal Docente e inscribe a tus estudiantes.',
+    desc: 'Registrate en ABL Educacion, ingresa al Portal Docente e inscribe a tus estudiantes.',
     color: '#4ECDC4',
+    emoji: '👩‍🏫',
   },
   {
     number: 2,
-    title: 'Descarguen e ingresen al aplicativo ABL Educación',
-    desc: '¡Comparte con tus estudiantes sus usuarios y contraseñas e ingresen al app para empezar a aprender de manera divertida!',
+    title: 'Descarguen e ingresen al aplicativo',
+    desc: 'Comparte con tus estudiantes sus usuarios y contrasenas para empezar a aprender de manera divertida.',
     color: '#FF6B6B',
+    emoji: '📱',
   },
   {
     number: 3,
-    title: 'Revisa tus recursos y reportes',
-    desc: 'Accede a videos pedagógicos, fichas curriculares, recomendaciones y reportes automáticos desde tu Portal Docente.',
+    title: 'Revisa recursos y reportes',
+    desc: 'Accede a videos pedagogicos, fichas curriculares y reportes automaticos desde tu portal.',
     color: '#56CCF2',
+    emoji: '📊',
   },
 ];
 
+const placeholderNews = [
+  {
+    id: 'placeholder-1',
+    title: 'Nuevos anuncios muy pronto',
+    summary: 'Aqui se publicaran novedades, actividades destacadas y anuncios importantes del programa.',
+    content: '',
+    image_url: '',
+    published_at: new Date().toISOString(),
+  },
+  {
+    id: 'placeholder-2',
+    title: 'Comparte avances del programa',
+    summary: 'Aqui podras destacar logros, eventos y anuncios importantes para docentes y familias.',
+    content: '',
+    image_url: '',
+    published_at: new Date().toISOString(),
+  },
+  {
+    id: 'placeholder-3',
+    title: 'Espacio para novedades',
+    summary: 'Esta seccion mostrara siempre las noticias mas recientes y relevantes para la comunidad educativa.',
+    content: '',
+    image_url: '',
+    published_at: new Date().toISOString(),
+  },
+];
+
+const formatNewsDate = (value) => {
+  if (!value) {
+    return '';
+  }
+
+  try {
+    return new Date(value).toLocaleDateString('es-PE', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    });
+  } catch (error) {
+    return value;
+  }
+};
+
 const LandingPage = () => {
   const navigate = useNavigate();
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [allTestimonials, setAllTestimonials] = useState(defaultTestimonials);
+  const location = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+
+  const [news, setNews] = useState([]);
+  const [currentNewsIndex, setCurrentNewsIndex] = useState(0);
+
+  const visibleNewsCount = isMobile ? 1 : isTablet ? 2 : 3;
+  const newsSource = news.length > 0 ? news : placeholderNews;
 
   useEffect(() => {
-    axiosInstance.get('/testimonials/')
-      .then((res) => {
-        if (res.data && res.data.length > 0) {
-          setAllTestimonials(res.data);
+    let isMounted = true;
+
+    axiosInstance.get('/news/')
+      .then((response) => {
+        if (isMounted) {
+          setNews(response.data || []);
         }
       })
-      .catch(() => { /* use defaults */ });
+      .catch(() => {
+        if (isMounted) {
+          setNews([]);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
-    if (allTestimonials.length === 0) return;
+    if (newsSource.length <= 1) {
+      return undefined;
+    }
+
     const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % allTestimonials.length);
-    }, 3000);
+      setCurrentNewsIndex((prev) => (prev + 1) % newsSource.length);
+    }, 4500);
+
     return () => clearInterval(timer);
-  }, [allTestimonials]);
+  }, [newsSource.length]);
+
+  useEffect(() => {
+    if (!location.hash) {
+      return;
+    }
+
+    const elementId = location.hash.replace('#', '');
+    const target = document.getElementById(elementId);
+
+    if (!target) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [location.hash]);
+
+  const visibleNews = useMemo(() => {
+    return Array.from({ length: visibleNewsCount }, (_, offset) => {
+      const index = (currentNewsIndex + offset) % newsSource.length;
+      return newsSource[index];
+    });
+  }, [currentNewsIndex, newsSource, visibleNewsCount]);
 
   return (
     <Box sx={{ overflowX: 'hidden', fontFamily: "'Nunito', sans-serif" }}>
-
-      {/* ═══════════════════════════════════════════
-          HERO SECTION
-          ═══════════════════════════════════════════ */}
       <Box
+        id="inicio"
         sx={{
           background: 'linear-gradient(180deg, #4ECDC4 0%, #2AB7AD 100%)',
           position: 'relative',
@@ -86,7 +167,6 @@ const LandingPage = () => {
           alignItems: 'center',
         }}
       >
-        {/* Decorative circles */}
         <Box
           sx={{
             position: 'absolute',
@@ -137,20 +217,19 @@ const LandingPage = () => {
 
         <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
           <Grid container spacing={4} alignItems="center">
-            {/* Left: Text content */}
             <Grid item xs={12} md={6}>
               <Typography
                 variant="h2"
                 sx={{
                   fontWeight: 900,
-                  fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem', lg: '3.5rem' },
+                  fontSize: { xs: '2rem', sm: '2.6rem', md: '3rem', lg: '3.5rem' },
                   lineHeight: 1.15,
                   mb: 2,
                   color: '#1a1a2e',
                   fontStyle: 'italic',
                 }}
               >
-                Rompiendo barreras,{' '}
+                Rompiendo barreras,
                 <Box component="span" sx={{ display: 'block' }}>
                   impulsando aprendizajes
                 </Box>
@@ -158,16 +237,15 @@ const LandingPage = () => {
               <Typography
                 variant="body1"
                 sx={{
-                  color: 'rgba(0,0,0,0.7)',
+                  color: 'rgba(0,0,0,0.72)',
                   mb: 4,
                   lineHeight: 1.7,
                   fontSize: { xs: '0.95rem', md: '1.05rem' },
-                  maxWidth: 450,
+                  maxWidth: 470,
                 }}
               >
-                Con <strong>ABL Educación</strong>, nuestros estudiantes pueden acceder a
-                nuevas actividades de matemática cada semana y resolverlas sin conexión
-                permanente a internet.
+                Con <strong>ABL Educacion</strong>, nuestros estudiantes acceden a nuevas actividades de
+                matematica cada semana y pueden aprender incluso con conectividad limitada.
               </Typography>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                 <Button
@@ -214,24 +292,17 @@ const LandingPage = () => {
                     },
                   }}
                 >
-                  🔽 Descargar app
+                  Descargar app
                 </Button>
               </Box>
             </Grid>
 
-            {/* Right: Illustration / Image placeholder */}
             <Grid item xs={12} md={6}>
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}
-              >
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                 <Box
                   component="img"
                   src="/logo-circulo.png"
-                  alt="ABL Educación"
+                  alt="ABL Educacion"
                   sx={{
                     width: { xs: 220, sm: 280, md: 320 },
                     height: 'auto',
@@ -244,141 +315,81 @@ const LandingPage = () => {
         </Container>
       </Box>
 
-      {/* ═══════════════════════════════════════════
-          TESTIMONIALS CAROUSEL
-          ═══════════════════════════════════════════ */}
-      <Box sx={{ py: { xs: 8, md: 12 }, background: '#FFF9EC' }}>
+      <Box
+        id="quienes-somos"
+        sx={{
+          py: { xs: 7, md: 9 },
+          background: '#fff',
+          borderTop: '1px solid #f0f0f0',
+          borderBottom: '1px solid #f0f0f0',
+        }}
+      >
         <Container maxWidth="lg">
-          {/* Carousel track */}
-          <Box sx={{ overflow: 'hidden' }}>
-            <Box
-              sx={{
-                display: 'flex',
-                transition: 'transform 0.7s cubic-bezier(0.4, 0, 0.2, 1)',
-                transform: `translateX(-${currentSlide * (100 / 3)}%)`,
-              }}
-            >
-              {/* Duplicate items for infinite loop effect */}
-              {[...allTestimonials, ...allTestimonials].map((t, i) => (
-                <Box
-                  key={i}
-                  sx={{
-                    flex: { xs: '0 0 100%', sm: '0 0 50%', md: '0 0 33.333%' },
-                    px: 1.5,
-                    boxSizing: 'border-box',
-                  }}
-                >
-                  <Box
-                    sx={{
-                      background: '#fff',
-                      borderRadius: '20px',
-                      p: { xs: 3, md: 4 },
-                      textAlign: 'center',
-                      boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
-                      border: '1px solid rgba(0,0,0,0.04)',
-                      height: '100%',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                      minHeight: 260,
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        fontWeight: 600,
-                        fontSize: { xs: '0.95rem', md: '1.05rem' },
-                        lineHeight: 1.7,
-                        mb: 3,
-                        fontStyle: 'italic',
-                        color: '#1a1a2e',
-                      }}
-                    >
-                      &ldquo;{t.quote}&rdquo;
-                    </Typography>
-                    <Rating
-                      value={t.rating}
-                      readOnly
-                      size="small"
-                      sx={{ mb: 1.5, mx: 'auto', '& .MuiRating-icon': { color: '#FFD93D' } }}
-                    />
-                    <Typography
-                      variant="body2"
-                      sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.85rem' }}
-                    >
-                      {t.role}
-                    </Typography>
-                  </Box>
-                </Box>
-              ))}
-            </Box>
-          </Box>
-
-          {/* Dots indicator */}
-          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 4 }}>
-            {allTestimonials.map((_, i) => (
-              <Box
-                key={i}
-                onClick={() => setCurrentSlide(i)}
+          <Grid container spacing={4} alignItems="center">
+            <Grid item xs={12} md={5}>
+              <Chip
+                label="Quienes Somos"
                 sx={{
-                  width: currentSlide === i ? 28 : 10,
-                  height: 10,
-                  borderRadius: '5px',
-                  background: currentSlide === i ? '#2B7DE9' : 'rgba(0,0,0,0.15)',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
+                  background: '#E3F7F5',
+                  color: '#15857d',
+                  fontWeight: 800,
+                  mb: 2,
                 }}
               />
-            ))}
-          </Box>
-        </Container>
-      </Box>
-
-      {/* ═══════════════════════════════════════════
-          PARTNERS / SUPPORTERS SECTION
-          ═══════════════════════════════════════════ */}
-      <Box sx={{ py: 6, background: '#fff', borderTop: '1px solid #f0f0f0' }}>
-        <Container maxWidth="md">
-          <Grid container spacing={4} alignItems="center">
-            <Grid item xs={12} sm={4}>
               <Typography
-                variant="subtitle2"
-                sx={{ fontWeight: 800, fontStyle: 'italic', mb: 1, color: '#1a1a2e' }}
+                variant="h3"
+                sx={{
+                  fontWeight: 900,
+                  color: '#1a1a2e',
+                  fontSize: { xs: '1.9rem', md: '2.5rem' },
+                  mb: 2,
+                }}
               >
-                Este programa es implementado por
+                Tecnologia educativa con foco en resultados reales
               </Typography>
-              <Typography
-                variant="h5"
-                sx={{ fontWeight: 900, color: '#4ECDC4', letterSpacing: 2 }}
-              >
-                ABL Educación
+              <Typography sx={{ color: 'text.secondary', lineHeight: 1.8, mb: 2.5 }}>
+                ABL Educacion acompana a docentes, directivos y estudiantes con recursos,
+                seguimiento y reportes para fortalecer el aprendizaje de matematica.
+              </Typography>
+              <Typography sx={{ color: 'text.secondary', lineHeight: 1.8 }}>
+                Combinamos actividades semanales, portal docente y analitica simple para
+                tomar decisiones pedagogicas con informacion clara.
               </Typography>
             </Grid>
-            <Grid item xs={12} sm={8}>
-              <Typography
-                variant="subtitle2"
-                sx={{ fontWeight: 800, fontStyle: 'italic', mb: 2, color: '#1a1a2e' }}
-              >
-                Con el apoyo de
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
-                {['🏛️ MinEdu', '🌐 ONG Digital', '📚 FundaEdu'].map((partner) => (
-                  <Typography
-                    key={partner}
-                    variant="body1"
-                    sx={{ fontWeight: 700, color: '#666', fontSize: '1rem' }}
-                  >
-                    {partner}
-                  </Typography>
+            <Grid item xs={12} md={7}>
+              <Grid container spacing={2}>
+                {[
+                  { title: 'Implementado por', value: 'ABL Educacion', color: '#4ECDC4' },
+                  { title: 'Enfoque', value: 'Aprendizaje aplicado y divertido', color: '#FF6B6B' },
+                  { title: 'Cobertura', value: 'Aulas, directivos y familias', color: '#56CCF2' },
+                  { title: 'Objetivo', value: 'Mejorar progreso y seguimiento', color: '#FFD93D' },
+                ].map((item) => (
+                  <Grid item xs={12} sm={6} key={item.title}>
+                    <Box
+                      sx={{
+                        background: '#fff9ec',
+                        borderRadius: '22px',
+                        p: 3,
+                        height: '100%',
+                        border: `1px solid ${item.color}55`,
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.04)',
+                      }}
+                    >
+                      <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: item.color, mb: 1 }}>
+                        {item.title}
+                      </Typography>
+                      <Typography sx={{ fontWeight: 800, color: '#1a1a2e', lineHeight: 1.4 }}>
+                        {item.value}
+                      </Typography>
+                    </Box>
+                  </Grid>
                 ))}
-              </Box>
+              </Grid>
             </Grid>
           </Grid>
         </Container>
       </Box>
 
-      {/* ═══════════════════════════════════════════
-          STEPS SECTION - "De manera divertida"
-          ═══════════════════════════════════════════ */}
       <Box
         sx={{
           py: { xs: 8, md: 12 },
@@ -387,7 +398,6 @@ const LandingPage = () => {
           overflow: 'hidden',
         }}
       >
-        {/* Decorative circles */}
         <Box
           sx={{
             position: 'absolute',
@@ -423,25 +433,7 @@ const LandingPage = () => {
                 color: '#1a1a2e',
               }}
             >
-              ¡
-              <Box component="span" sx={{ color: '#4ECDC4' }}>
-                ABL
-              </Box>{' '}
-              <Box component="span" sx={{ color: '#FF6B6B' }}>
-                Educación
-              </Box>{' '}
-              de manera
-            </Typography>
-            <Typography
-              variant="h3"
-              sx={{
-                fontWeight: 900,
-                fontStyle: 'italic',
-                fontSize: { xs: '1.8rem', md: '2.5rem' },
-                color: '#1a1a2e',
-              }}
-            >
-              divertida desde hoy!
+              ABL Educacion de manera divertida desde hoy
             </Typography>
           </Box>
 
@@ -449,7 +441,6 @@ const LandingPage = () => {
             {steps.map((step) => (
               <Grid item xs={12} md={4} key={step.number}>
                 <Box sx={{ textAlign: 'center' }}>
-                  {/* Circular step image placeholder */}
                   <Box
                     sx={{
                       width: 180,
@@ -465,7 +456,6 @@ const LandingPage = () => {
                       border: `3px solid ${step.color}`,
                     }}
                   >
-                    {/* Step number badge */}
                     <Box
                       sx={{
                         position: 'absolute',
@@ -480,15 +470,11 @@ const LandingPage = () => {
                         justifyContent: 'center',
                       }}
                     >
-                      <Typography
-                        sx={{ color: '#fff', fontWeight: 900, fontSize: '1.2rem' }}
-                      >
+                      <Typography sx={{ color: '#fff', fontWeight: 900, fontSize: '1.2rem' }}>
                         {step.number}
                       </Typography>
                     </Box>
-                    <Typography sx={{ fontSize: '3.5rem' }}>
-                      {step.number === 1 ? '👩‍🏫' : step.number === 2 ? '📱' : '📊'}
-                    </Typography>
+                    <Typography sx={{ fontSize: '3.5rem' }}>{step.emoji}</Typography>
                   </Box>
                   <Typography
                     variant="subtitle1"
@@ -512,7 +498,6 @@ const LandingPage = () => {
             ))}
           </Grid>
 
-          {/* CTA Button */}
           <Box sx={{ textAlign: 'center', mt: 8 }}>
             <Button
               variant="contained"
@@ -541,7 +526,138 @@ const LandingPage = () => {
         </Container>
       </Box>
 
-      {/* Footer */}
+      <Box
+        id="noticias"
+        sx={{
+          py: { xs: 8, md: 10 },
+          background: 'linear-gradient(180deg, #ffffff 0%, #f7fbff 100%)',
+          borderTop: '1px solid #eef2f6',
+        }}
+      >
+        <Container maxWidth="lg">
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'flex-end', flexWrap: 'wrap', mb: 4 }}>
+            <Box>
+              <Chip
+                label="Noticias"
+                sx={{
+                  background: '#E9F2FF',
+                  color: '#2b7de9',
+                  fontWeight: 800,
+                  mb: 2,
+                }}
+              />
+              <Typography
+                variant="h3"
+                sx={{
+                  fontWeight: 900,
+                  color: '#1a1a2e',
+                  fontSize: { xs: '1.8rem', md: '2.4rem' },
+                  mb: 1,
+                }}
+              >
+                Ultimas novedades de ABL Educacion
+              </Typography>
+              <Typography sx={{ color: 'text.secondary', maxWidth: 660, lineHeight: 1.8 }}>
+                Revisa anuncios, actividades destacadas y novedades recientes de ABL Educacion.
+              </Typography>
+            </Box>
+            <Typography sx={{ color: '#2b7de9', fontWeight: 700 }}>
+              {news.length > 0 ? `${news.length} noticias activas` : 'Sin noticias activas'}
+            </Typography>
+          </Box>
+
+          <Grid container spacing={3}>
+            {visibleNews.map((item, index) => (
+              <Grid item xs={12} sm={visibleNewsCount === 1 ? 12 : 6} md={4} key={`${item.id}-${index}-${currentNewsIndex}`}>
+                <Box
+                  sx={{
+                    background: '#fff',
+                    borderRadius: '24px',
+                    overflow: 'hidden',
+                    height: '100%',
+                    border: '1px solid rgba(16,24,40,0.08)',
+                    boxShadow: '0 18px 40px rgba(15,23,42,0.08)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                  <Box
+                    sx={{
+                      height: 190,
+                      background: item.image_url
+                        ? `linear-gradient(180deg, rgba(17,24,39,0.08), rgba(17,24,39,0.5)), url(${item.image_url})`
+                        : 'linear-gradient(135deg, #4ECDC4 0%, #2B7DE9 100%)',
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      position: 'relative',
+                      p: 2.5,
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                    }}
+                  >
+                    <Chip
+                      label={formatNewsDate(item.published_at)}
+                      sx={{
+                        background: 'rgba(255,255,255,0.92)',
+                        color: '#1a1a2e',
+                        fontWeight: 700,
+                      }}
+                    />
+                  </Box>
+
+                  <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 800,
+                        color: '#1a1a2e',
+                        mb: 1.5,
+                        lineHeight: 1.35,
+                        minHeight: 58,
+                      }}
+                    >
+                      {item.title}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        color: 'text.secondary',
+                        lineHeight: 1.75,
+                        flexGrow: 1,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 4,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {item.summary}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+            ))}
+          </Grid>
+
+          {newsSource.length > 1 && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 4 }}>
+              {newsSource.map((_, index) => (
+                <Box
+                  key={`dot-${index}`}
+                  onClick={() => setCurrentNewsIndex(index)}
+                  sx={{
+                    width: currentNewsIndex === index ? 28 : 10,
+                    height: 10,
+                    borderRadius: 999,
+                    background: currentNewsIndex === index ? '#2B7DE9' : 'rgba(43,125,233,0.2)',
+                    cursor: 'pointer',
+                    transition: 'all 0.25s ease',
+                  }}
+                />
+              ))}
+            </Box>
+          )}
+        </Container>
+      </Box>
+
       <Footer />
     </Box>
   );

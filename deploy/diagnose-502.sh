@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SERVICE_NAME="${SERVICE_NAME:-ableducacion-backend}"
-DOMAIN="${DOMAIN:-portal.inaci.edu.pe}"
+DOMAIN="${DOMAIN:-pontealdia.ableducacion.com}"
 
 echo "=== Diagnose 502 for ${DOMAIN} ==="
 echo
