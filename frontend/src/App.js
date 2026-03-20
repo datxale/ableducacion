@@ -24,6 +24,7 @@ import AdminDashboard from './pages/Admin/AdminDashboard';
 import ManageUsers from './pages/Admin/ManageUsers';
 import ManageActivities from './pages/Admin/ManageActivities';
 import ManageClasses from './pages/Admin/ManageClasses';
+import ManageLandingPage from './pages/Admin/ManageLandingPage';
 import ManageNews from './pages/Admin/ManageNews';
 import ManageTestimonials from './pages/Admin/ManageTestimonials';
 
@@ -172,6 +173,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute adminOnly>
                 <ManageClasses />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/landing-page"
+            element={
+              <ProtectedRoute adminOnly>
+                <ManageLandingPage />
               </ProtectedRoute>
             }
           />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   AppBar,
   Avatar,
@@ -34,6 +34,11 @@ import {
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import axiosInstance from '../../api/axios';
+import {
+  landingPageDefaults,
+  mergeLandingPageConfig,
+} from '../../constants/landingPageDefaults';
 import { useAuth } from '../../context/AuthContext';
 
 const Navbar = () => {
@@ -45,12 +50,7 @@ const Navbar = () => {
 
   const [anchorEl, setAnchorEl] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  const publicNavItems = [
-    { label: 'Inicio', hash: '' },
-    { label: 'Quienes Somos', hash: '#quienes-somos' },
-    { label: 'Noticias', hash: '#noticias' },
-  ];
+  const [landingContent, setLandingContent] = useState(landingPageDefaults);
 
   const handleProfileMenu = (event) => setAnchorEl(event.currentTarget);
   const handleCloseMenu = () => setAnchorEl(null);
@@ -95,6 +95,35 @@ const Navbar = () => {
   const roleColor = isAdmin ? '#9c27b0' : user?.role === 'docente' ? '#1976d2' : '#4caf50';
   const roleLabel = isAdmin ? 'Admin' : user?.role === 'docente' ? 'Docente' : 'Estudiante';
   const isLanding = location.pathname === '/' || location.pathname === '/inicio';
+  const publicNavItems = [
+    { label: landingContent.nav_home_label, hash: '' },
+    { label: landingContent.nav_about_label, hash: '#quienes-somos' },
+    { label: landingContent.nav_news_label, hash: '#noticias' },
+  ];
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      return undefined;
+    }
+
+    let isMounted = true;
+
+    axiosInstance.get('/landing-page/')
+      .then((response) => {
+        if (isMounted) {
+          setLandingContent(mergeLandingPageConfig(response.data));
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setLandingContent(landingPageDefaults);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated]);
 
   const isNavItemActive = (itemPath) => {
     if (itemPath === '/admin') {
@@ -324,7 +353,7 @@ const Navbar = () => {
                   },
                 }}
               >
-                Ingresar
+                {landingContent.login_button_label}
               </Button>
             )}
           </Box>

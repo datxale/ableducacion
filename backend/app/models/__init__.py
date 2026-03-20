@@ -9,6 +9,7 @@ from app.models.live_class import LiveClass
 from app.models.enrollment import Enrollment
 from app.models.progress import Progress
 from app.models.news import NewsPost
+from app.models.landing_page import LandingPageConfig
 
 __all__ = [
     "User",
@@ -22,4 +23,5 @@ __all__ = [
     "Enrollment",
     "Progress",
     "NewsPost",
+    "LandingPageConfig",
 ]

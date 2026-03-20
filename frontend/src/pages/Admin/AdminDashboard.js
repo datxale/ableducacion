@@ -136,6 +136,7 @@ const AdminDashboard = () => {
     { label: 'Gestionar usuarios', icon: '👥', path: '/admin/users', color: '#1976d2' },
     { label: 'Subir actividades', icon: '📤', path: '/admin/activities', color: '#9c27b0' },
     { label: 'Programar clase', icon: '🎥', path: '/admin/classes', color: '#e91e63' },
+    { label: 'Editar landing', icon: '🌐', path: '/admin/landing-page', color: '#1565c0' },
     { label: 'Editar noticias', icon: '📰', path: '/admin/news', color: '#ef6c00' },
     { label: 'Ver grados', icon: '📚', path: '/grades', color: '#4caf50' },
   ];
@@ -161,6 +162,13 @@ const AdminDashboard = () => {
       desc: 'Programa sesiones y videollamadas',
       path: '/admin/classes',
       color: '#e91e63',
+    },
+    {
+      icon: '🌐',
+      title: 'Landing Page',
+      desc: 'Edita los textos de la pagina de inicio',
+      path: '/admin/landing-page',
+      color: '#1565c0',
     },
     {
       icon: '📰',

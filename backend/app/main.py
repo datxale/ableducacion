@@ -20,6 +20,7 @@ from app.routers import (
     progress,
     testimonials,
     news,
+    landing_page,
 )
 
 logging.basicConfig(
@@ -82,6 +83,7 @@ app.include_router(enrollments.router)
 app.include_router(progress.router)
 app.include_router(testimonials.router)
 app.include_router(news.router)
+app.include_router(landing_page.router)
 
 
 @app.on_event("startup")
