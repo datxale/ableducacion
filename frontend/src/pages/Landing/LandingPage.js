@@ -4,6 +4,9 @@ import {
   Button,
   Chip,
   Container,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   Grid,
   Typography,
 } from '@mui/material';
@@ -67,6 +70,15 @@ const formatNewsDate = (value) => {
   }
 };
 
+const getNewsDetailText = (item) => {
+  const content = item?.content?.trim();
+  if (content) {
+    return content;
+  }
+
+  return item?.summary || '';
+};
+
 const LandingPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -74,6 +86,7 @@ const LandingPage = () => {
   const [landingContent, setLandingContent] = useState(landingPageDefaults);
   const [news, setNews] = useState([]);
   const [currentNewsIndex, setCurrentNewsIndex] = useState(0);
+  const [selectedNews, setSelectedNews] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -541,6 +554,27 @@ const LandingPage = () => {
                   >
                     {item.summary}
                   </Typography>
+                  <Button
+                    variant="text"
+                    onClick={() => setSelectedNews(item)}
+                    sx={{
+                      alignSelf: 'flex-start',
+                      mt: 2,
+                      px: 0,
+                      color: '#2B7DE9',
+                      fontWeight: 800,
+                      textTransform: 'none',
+                      boxShadow: 'none',
+                      '&:hover': {
+                        background: 'transparent',
+                        boxShadow: 'none',
+                        transform: 'none',
+                        color: '#1565c0',
+                      },
+                    }}
+                  >
+                    Ver mas
+                  </Button>
                 </Box>
               </Box>
             ))}
@@ -566,6 +600,66 @@ const LandingPage = () => {
           )}
         </Container>
       </Box>
+
+      <Dialog
+        open={Boolean(selectedNews)}
+        onClose={() => setSelectedNews(null)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '24px',
+            overflow: 'hidden',
+          },
+        }}
+      >
+        {selectedNews && (
+          <>
+            <Box
+              sx={{
+                height: 220,
+                background: selectedNews.image_url
+                  ? `linear-gradient(180deg, rgba(17,24,39,0.12), rgba(17,24,39,0.55)), url(${selectedNews.image_url})`
+                  : 'linear-gradient(135deg, #4ECDC4 0%, #2B7DE9 100%)',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                p: 3,
+                display: 'flex',
+                alignItems: 'flex-start',
+              }}
+            >
+              <Chip
+                label={formatNewsDate(selectedNews.published_at)}
+                sx={{
+                  background: 'rgba(255,255,255,0.92)',
+                  color: '#1a1a2e',
+                  fontWeight: 700,
+                }}
+              />
+            </Box>
+            <DialogTitle
+              sx={{
+                pb: 1,
+                fontWeight: 900,
+                color: '#1a1a2e',
+              }}
+            >
+              {selectedNews.title}
+            </DialogTitle>
+            <DialogContent sx={{ pb: 4 }}>
+              <Typography
+                sx={{
+                  color: 'text.secondary',
+                  lineHeight: 1.75,
+                  whiteSpace: 'pre-line',
+                }}
+              >
+                {getNewsDetailText(selectedNews)}
+              </Typography>
+            </DialogContent>
+          </>
+        )}
+      </Dialog>
 
       <Box
         sx={{
