@@ -240,9 +240,15 @@ const LandingPage = () => {
         />
 
         <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
-          <Grid container spacing={{ xs: 5, md: 6 }} alignItems="center">
-            <Grid item xs={12} md={6}>
-              <Box sx={{ maxWidth: 560 }}>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 560px' },
+              gap: { xs: 5, md: 6 },
+              alignItems: 'center',
+            }}
+          >
+            <Box sx={{ maxWidth: { xs: '100%', md: 560 } }}>
                 <Typography
                   sx={{
                     display: 'inline-flex',
@@ -359,10 +365,15 @@ const LandingPage = () => {
                     />
                   ))}
                 </Box>
-              </Box>
-            </Grid>
+            </Box>
 
-            <Grid item xs={12} md={6}>
+            <Box
+              sx={{
+                width: '100%',
+                display: 'flex',
+                justifyContent: { xs: 'center', md: 'flex-end' },
+              }}
+            >
               <Box sx={{ width: { xs: '100%', md: 560 }, maxWidth: '100%', ml: { md: 'auto' } }}>
                 <Suspense
                   fallback={(
@@ -382,8 +393,8 @@ const LandingPage = () => {
                   <HeroThreeScene highlights={heroHighlights} />
                 </Suspense>
               </Box>
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
         </Container>
       </Box>
 

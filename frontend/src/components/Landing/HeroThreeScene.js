@@ -49,14 +49,16 @@ const HeroThreeScene = ({ highlights = [] }) => {
     });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.setClearColor(0x000000, 0);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    renderer.setClearColor(0x04111f, 0.08);
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
     renderer.domElement.style.display = 'block';
     container.appendChild(renderer.domElement);
 
     const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
-    camera.position.set(0, 0.25, 6.8);
+    camera.position.set(0, 0.2, 7.2);
 
     const root = new THREE.Group();
     scene.add(root);
@@ -81,28 +83,36 @@ const HeroThreeScene = ({ highlights = [] }) => {
 
     const core = new THREE.Mesh(
       new THREE.IcosahedronGeometry(1.55, 1),
-      new THREE.MeshPhysicalMaterial({
-        color: 0x1a8ff2,
-        metalness: 0.2,
-        roughness: 0.12,
-        transmission: 0.22,
-        thickness: 1.4,
-        clearcoat: 1,
-        clearcoatRoughness: 0.18,
+      new THREE.MeshPhongMaterial({
+        color: 0x2f8fff,
+        shininess: 90,
+        specular: 0xefffff,
         emissive: 0x0d55d8,
-        emissiveIntensity: 0.55,
+        emissiveIntensity: 0.9,
       }),
     );
     root.add(core);
 
+    const innerCore = new THREE.Mesh(
+      new THREE.SphereGeometry(0.92, 42, 42),
+      new THREE.MeshStandardMaterial({
+        color: 0xe9fbff,
+        emissive: 0x8ae7ff,
+        emissiveIntensity: 1.4,
+        roughness: 0.16,
+        metalness: 0.05,
+      }),
+    );
+    root.add(innerCore);
+
     const halo = new THREE.Mesh(
-      new THREE.TorusGeometry(2.3, 0.07, 18, 140),
+      new THREE.TorusGeometry(2.45, 0.1, 18, 180),
       new THREE.MeshStandardMaterial({
         color: 0x89f1ff,
         emissive: 0x42d9ff,
-        emissiveIntensity: 0.95,
+        emissiveIntensity: 1.35,
         metalness: 0.55,
-        roughness: 0.25,
+        roughness: 0.18,
       }),
     );
     halo.rotation.x = Math.PI / 2.6;
@@ -110,18 +120,38 @@ const HeroThreeScene = ({ highlights = [] }) => {
     root.add(halo);
 
     const secondaryHalo = new THREE.Mesh(
-      new THREE.TorusGeometry(1.78, 0.09, 18, 100),
+      new THREE.TorusGeometry(1.85, 0.12, 18, 120),
       new THREE.MeshStandardMaterial({
         color: 0xffd357,
         emissive: 0xffbf47,
-        emissiveIntensity: 0.65,
+        emissiveIntensity: 0.9,
         metalness: 0.35,
-        roughness: 0.34,
+        roughness: 0.24,
       }),
     );
     secondaryHalo.rotation.x = Math.PI / 2.1;
     secondaryHalo.rotation.z = 0.55;
     root.add(secondaryHalo);
+
+    const orbitTrail = new THREE.LineLoop(
+      new THREE.BufferGeometry().setFromPoints(
+        Array.from({ length: 120 }, (_, index) => {
+          const angle = (index / 120) * Math.PI * 2;
+          return new THREE.Vector3(
+            Math.cos(angle) * 2.95,
+            Math.sin(angle) * 1.15,
+            Math.sin(angle * 2.2) * 0.18,
+          );
+        }),
+      ),
+      new THREE.LineBasicMaterial({
+        color: 0xb9f7ff,
+        transparent: true,
+        opacity: 0.42,
+      }),
+    );
+    orbitTrail.rotation.x = Math.PI / 3.2;
+    orbitLayer.add(orbitTrail);
 
     const shield = new THREE.Mesh(
       new THREE.OctahedronGeometry(1.95, 0),
@@ -139,26 +169,37 @@ const HeroThreeScene = ({ highlights = [] }) => {
     logoTexture.colorSpace = THREE.SRGBColorSpace;
 
     const logoPanel = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.65, 2.65),
+      new THREE.PlaneGeometry(2.8, 2.8),
       new THREE.MeshBasicMaterial({
         map: logoTexture,
         transparent: true,
-        opacity: 0.98,
+        opacity: 1,
       }),
     );
-    logoPanel.position.z = 0.55;
+    logoPanel.position.z = 1.1;
     root.add(logoPanel);
 
     const glowPlane = new THREE.Mesh(
-      new THREE.CircleGeometry(2.45, 64),
+      new THREE.CircleGeometry(3.05, 64),
       new THREE.MeshBasicMaterial({
         color: 0x6ce8ff,
         transparent: true,
-        opacity: 0.12,
+        opacity: 0.22,
       }),
     );
-    glowPlane.position.z = -0.25;
+    glowPlane.position.z = -0.55;
     root.add(glowPlane);
+
+    const backgroundDisk = new THREE.Mesh(
+      new THREE.CircleGeometry(3.45, 64),
+      new THREE.MeshBasicMaterial({
+        color: 0x0a3259,
+        transparent: true,
+        opacity: 0.72,
+      }),
+    );
+    backgroundDisk.position.z = -0.95;
+    root.add(backgroundDisk);
 
     const accentPalette = [0x4ecdc4, 0xff6b6b, 0x56ccf2, 0xffd93d, 0xffffff];
     const satellites = Array.from({ length: 6 }, (_, index) => {
@@ -181,9 +222,9 @@ const HeroThreeScene = ({ highlights = [] }) => {
       createParticles(180),
       new THREE.PointsMaterial({
         color: 0xf5ffff,
-        size: 0.055,
+        size: 0.075,
         transparent: true,
-        opacity: 0.72,
+        opacity: 0.92,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       }),
@@ -192,7 +233,7 @@ const HeroThreeScene = ({ highlights = [] }) => {
 
     const pointerTarget = new THREE.Vector2(0, 0);
     const pointer = new THREE.Vector2(0, 0);
-    const clock = new THREE.Clock();
+    const startTime = performance.now();
     let animationFrameId = 0;
 
     const resizeScene = () => {
@@ -229,7 +270,7 @@ const HeroThreeScene = ({ highlights = [] }) => {
     const animate = () => {
       animationFrameId = window.requestAnimationFrame(animate);
 
-      const elapsed = clock.getElapsedTime();
+      const elapsed = (performance.now() - startTime) / 1000;
       pointer.lerp(pointerTarget, 0.06);
 
       root.rotation.y = (pointer.x * 0.32) + (Math.sin(elapsed * 0.34) * 0.08);
@@ -238,6 +279,8 @@ const HeroThreeScene = ({ highlights = [] }) => {
       core.rotation.x += 0.0028;
       core.rotation.y += 0.004;
       core.position.y = Math.sin(elapsed * 1.2) * 0.08;
+      innerCore.position.copy(core.position);
+      innerCore.rotation.y -= 0.006;
 
       halo.rotation.z = elapsed * 0.24;
       secondaryHalo.rotation.y = -elapsed * 0.26;
@@ -311,12 +354,13 @@ const HeroThreeScene = ({ highlights = [] }) => {
         borderRadius: { xs: '30px', md: '38px' },
         overflow: 'hidden',
         background: `
-          radial-gradient(circle at 24% 18%, rgba(124, 244, 255, 0.28), transparent 24%),
-          radial-gradient(circle at 78% 28%, rgba(255, 107, 107, 0.18), transparent 16%),
-          linear-gradient(155deg, rgba(6, 20, 42, 0.88) 0%, rgba(14, 70, 118, 0.82) 48%, rgba(17, 128, 196, 0.48) 100%)
+          radial-gradient(circle at 22% 16%, rgba(124, 244, 255, 0.32), transparent 20%),
+          radial-gradient(circle at 78% 24%, rgba(255, 107, 107, 0.22), transparent 16%),
+          radial-gradient(circle at 50% 84%, rgba(255, 217, 61, 0.18), transparent 18%),
+          linear-gradient(150deg, rgba(4, 15, 31, 0.96) 0%, rgba(7, 43, 78, 0.94) 48%, rgba(17, 102, 173, 0.78) 100%)
         `,
-        border: '1px solid rgba(255,255,255,0.22)',
-        boxShadow: '0 35px 90px rgba(7, 18, 41, 0.34), inset 0 1px 0 rgba(255,255,255,0.2)',
+        border: '1px solid rgba(255,255,255,0.26)',
+        boxShadow: '0 40px 100px rgba(7, 18, 41, 0.42), inset 0 1px 0 rgba(255,255,255,0.22)',
       }}
     >
       <Box
@@ -340,6 +384,17 @@ const HeroThreeScene = ({ highlights = [] }) => {
           backgroundSize: '36px 36px',
           maskImage: 'radial-gradient(circle at center, black 32%, transparent 88%)',
           opacity: 0.25,
+          pointerEvents: 'none',
+        }}
+      />
+
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 10,
+          borderRadius: { xs: '24px', md: '32px' },
+          border: '1px solid rgba(255,255,255,0.08)',
+          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.04)',
           pointerEvents: 'none',
         }}
       />
