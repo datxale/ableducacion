@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -78,6 +78,8 @@ const getNewsDetailText = (item) => {
 
   return item?.summary || '';
 };
+
+const HeroThreeScene = lazy(() => import('../../components/Landing/HeroThreeScene'));
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -197,18 +199,28 @@ const LandingPage = () => {
     title: landingContent[`step_${index + 1}_title`],
     desc: landingContent[`step_${index + 1}_description`],
   }));
+  const heroHighlights = [
+    landingContent.about_card_2_value,
+    landingContent.about_card_3_value,
+    landingContent.about_card_4_value,
+  ];
 
   return (
     <Box sx={{ overflowX: 'hidden', fontFamily: "'Nunito', sans-serif" }}>
       <Box
         id="inicio"
         sx={{
-          background: 'linear-gradient(180deg, #4ECDC4 0%, #2AB7AD 100%)',
+          background: `
+            radial-gradient(circle at 4% 12%, rgba(91, 110, 225, 0.34), transparent 11%),
+            radial-gradient(circle at 78% 15%, rgba(255, 107, 107, 0.32), transparent 8%),
+            radial-gradient(circle at 54% 44%, rgba(255, 255, 255, 0.22), transparent 7%),
+            linear-gradient(135deg, #63ddd6 0%, #44cfcb 36%, #2b8ff0 100%)
+          `,
           position: 'relative',
           overflow: 'hidden',
-          pt: { xs: 10, md: 12 },
+          pt: { xs: 11, md: 13 },
           pb: { xs: 8, md: 10 },
-          minHeight: { md: '80vh' },
+          minHeight: { md: '92vh' },
           display: 'flex',
           alignItems: 'center',
         }}
@@ -216,144 +228,158 @@ const LandingPage = () => {
         <Box
           sx={{
             position: 'absolute',
-            top: 40,
-            left: 30,
-            width: 80,
-            height: 80,
-            borderRadius: '50%',
-            background: '#5B6EE1',
-            opacity: 0.8,
-          }}
-        />
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 60,
-            right: '35%',
-            width: 50,
-            height: 50,
-            borderRadius: '50%',
-            background: '#FF6B6B',
-            opacity: 0.8,
-          }}
-        />
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '40%',
-            right: '45%',
-            width: 40,
-            height: 40,
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.3)',
-          }}
-        />
-        <Box
-          sx={{
-            position: 'absolute',
-            bottom: '20%',
-            left: '10%',
-            width: 60,
-            height: 60,
-            borderRadius: '50%',
-            background: '#FFD93D',
-            opacity: 0.7,
+            inset: 0,
+            backgroundImage: `
+              linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)
+            `,
+            backgroundSize: { xs: '28px 28px', md: '38px 38px' },
+            maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.22), rgba(0,0,0,0.8) 18%, rgba(0,0,0,0.1) 100%)',
+            opacity: 0.22,
           }}
         />
 
         <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
-          <Grid container spacing={4} alignItems="center">
+          <Grid container spacing={{ xs: 5, md: 6 }} alignItems="center">
             <Grid item xs={12} md={6}>
-              <Typography
-                variant="h2"
-                sx={{
-                  fontWeight: 900,
-                  fontSize: { xs: '2rem', sm: '2.6rem', md: '3rem', lg: '3.5rem' },
-                  lineHeight: 1.15,
-                  mb: 2,
-                  color: '#1a1a2e',
-                  fontStyle: 'italic',
-                }}
-              >
-                {landingContent.hero_title_line_1}
-                <Box component="span" sx={{ display: 'block' }}>
-                  {landingContent.hero_title_line_2}
+              <Box sx={{ maxWidth: 560 }}>
+                <Typography
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    px: 2,
+                    py: 1,
+                    borderRadius: '999px',
+                    background: 'rgba(255,255,255,0.22)',
+                    border: '1px solid rgba(255,255,255,0.3)',
+                    color: '#0e2846',
+                    fontWeight: 800,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                    fontSize: '0.75rem',
+                    mb: 2.5,
+                    backdropFilter: 'blur(16px)',
+                  }}
+                >
+                  Experiencia inmersiva ABL Educacion
+                </Typography>
+                <Typography
+                  variant="h2"
+                  sx={{
+                    fontWeight: 900,
+                    fontSize: { xs: '2.45rem', sm: '3.3rem', md: '4rem', lg: '4.45rem' },
+                    lineHeight: 1.02,
+                    mb: 2,
+                    color: '#11203f',
+                    fontStyle: 'italic',
+                    letterSpacing: '-0.03em',
+                    textWrap: 'balance',
+                  }}
+                >
+                  {landingContent.hero_title_line_1}
+                  <Box component="span" sx={{ display: 'block' }}>
+                    {landingContent.hero_title_line_2}
+                  </Box>
+                </Typography>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    color: 'rgba(11,28,54,0.82)',
+                    mb: 4,
+                    lineHeight: 1.7,
+                    fontSize: { xs: '1rem', md: '1.08rem' },
+                    maxWidth: 500,
+                  }}
+                >
+                  {landingContent.hero_description}
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                  <Button
+                    variant="contained"
+                    size="large"
+                    onClick={() => navigate('/register')}
+                    sx={{
+                      background: '#FF6B6B',
+                      color: '#fff',
+                      fontWeight: 800,
+                      px: 4.4,
+                      py: 1.6,
+                      fontSize: '1rem',
+                      borderRadius: '999px',
+                      textTransform: 'none',
+                      boxShadow: '0 16px 30px rgba(255,107,107,0.34)',
+                      '&:hover': {
+                        background: '#e05555',
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 18px 34px rgba(255,107,107,0.38)',
+                      },
+                    }}
+                  >
+                    {landingContent.hero_primary_button_label}
+                  </Button>
+                  <Button
+                    variant="contained"
+                    size="large"
+                    onClick={() => navigate('/login')}
+                    sx={{
+                      background: '#FFD93D',
+                      color: '#102246',
+                      fontWeight: 800,
+                      px: 4.4,
+                      py: 1.6,
+                      fontSize: '1rem',
+                      borderRadius: '999px',
+                      textTransform: 'none',
+                      boxShadow: '0 16px 30px rgba(255,217,61,0.28)',
+                      '&:hover': {
+                        background: '#f0c830',
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 18px 34px rgba(255,217,61,0.32)',
+                      },
+                    }}
+                  >
+                    {landingContent.hero_secondary_button_label}
+                  </Button>
                 </Box>
-              </Typography>
-              <Typography
-                variant="body1"
-                sx={{
-                  color: 'rgba(0,0,0,0.72)',
-                  mb: 4,
-                  lineHeight: 1.7,
-                  fontSize: { xs: '0.95rem', md: '1.05rem' },
-                  maxWidth: 470,
-                }}
-              >
-                {landingContent.hero_description}
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <Button
-                  variant="contained"
-                  size="large"
-                  onClick={() => navigate('/register')}
-                  sx={{
-                    background: '#FF6B6B',
-                    color: '#fff',
-                    fontWeight: 800,
-                    px: 4,
-                    py: 1.5,
-                    fontSize: '1rem',
-                    borderRadius: '30px',
-                    textTransform: 'none',
-                    boxShadow: '0 4px 15px rgba(255,107,107,0.4)',
-                    '&:hover': {
-                      background: '#e05555',
-                      transform: 'translateY(-2px)',
-                      boxShadow: '0 6px 20px rgba(255,107,107,0.5)',
-                    },
-                  }}
-                >
-                  {landingContent.hero_primary_button_label}
-                </Button>
-                <Button
-                  variant="contained"
-                  size="large"
-                  onClick={() => navigate('/login')}
-                  sx={{
-                    background: '#FFD93D',
-                    color: '#1a1a2e',
-                    fontWeight: 800,
-                    px: 4,
-                    py: 1.5,
-                    fontSize: '1rem',
-                    borderRadius: '30px',
-                    textTransform: 'none',
-                    boxShadow: '0 4px 15px rgba(255,217,61,0.4)',
-                    '&:hover': {
-                      background: '#f0c830',
-                      transform: 'translateY(-2px)',
-                      boxShadow: '0 6px 20px rgba(255,217,61,0.5)',
-                    },
-                  }}
-                >
-                  {landingContent.hero_secondary_button_label}
-                </Button>
+                <Box sx={{ display: 'flex', gap: 1.2, flexWrap: 'wrap', mt: 3.2 }}>
+                  {heroHighlights.map((highlight) => (
+                    <Chip
+                      key={highlight}
+                      label={highlight}
+                      sx={{
+                        background: 'rgba(255,255,255,0.18)',
+                        color: '#0f2344',
+                        fontWeight: 800,
+                        border: '1px solid rgba(255,255,255,0.3)',
+                        backdropFilter: 'blur(14px)',
+                        '& .MuiChip-label': {
+                          px: 1.8,
+                        },
+                      }}
+                    />
+                  ))}
+                </Box>
               </Box>
             </Grid>
 
             <Grid item xs={12} md={6}>
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <Box
-                  component="img"
-                  src="/logo-circulo.png"
-                  alt="ABL Educacion"
-                  sx={{
-                    width: { xs: 220, sm: 280, md: 320 },
-                    height: 'auto',
-                    filter: 'drop-shadow(0 8px 30px rgba(0,0,0,0.15))',
-                  }}
-                />
+              <Box sx={{ width: '100%', maxWidth: 560, ml: { md: 'auto' } }}>
+                <Suspense
+                  fallback={(
+                    <Box
+                      sx={{
+                        width: '100%',
+                        height: { xs: 360, sm: 440, md: 520 },
+                        borderRadius: { xs: '30px', md: '38px' },
+                        background: 'linear-gradient(155deg, rgba(6, 20, 42, 0.88), rgba(14, 70, 118, 0.82), rgba(17, 128, 196, 0.48))',
+                        border: '1px solid rgba(255,255,255,0.22)',
+                        boxShadow: '0 35px 90px rgba(7, 18, 41, 0.34)',
+                      }}
+                    />
+                  )}
+                >
+                  <HeroThreeScene highlights={heroHighlights} />
+                </Suspense>
               </Box>
             </Grid>
           </Grid>
