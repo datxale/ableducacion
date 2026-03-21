@@ -305,7 +305,8 @@ const HeroThreeScene = ({ highlights = [] }) => {
     <Box
       sx={{
         position: 'relative',
-        width: '100%',
+        width: { xs: '100%', md: 560 },
+        maxWidth: '100%',
         height: { xs: 360, sm: 440, md: 520 },
         borderRadius: { xs: '30px', md: '38px' },
         overflow: 'hidden',

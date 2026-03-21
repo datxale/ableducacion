@@ -363,12 +363,13 @@ const LandingPage = () => {
             </Grid>
 
             <Grid item xs={12} md={6}>
-              <Box sx={{ width: '100%', maxWidth: 560, ml: { md: 'auto' } }}>
+              <Box sx={{ width: { xs: '100%', md: 560 }, maxWidth: '100%', ml: { md: 'auto' } }}>
                 <Suspense
                   fallback={(
                     <Box
                       sx={{
-                        width: '100%',
+                        width: { xs: '100%', md: 560 },
+                        maxWidth: '100%',
                         height: { xs: 360, sm: 440, md: 520 },
                         borderRadius: { xs: '30px', md: '38px' },
                         background: 'linear-gradient(155deg, rgba(6, 20, 42, 0.88), rgba(14, 70, 118, 0.82), rgba(17, 128, 196, 0.48))',
