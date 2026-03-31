@@ -8,21 +8,29 @@ import {
   CardActions,
   CardContent,
   Chip,
+  CircularProgress,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Grid,
   Link,
   Paper,
   Stack,
   Tab,
   Tabs,
+  TextField,
   Typography,
 } from '@mui/material';
 import {
+  Add,
   CalendarMonth,
   Home,
   OndemandVideo,
   OpenInNew,
   PictureAsPdf,
+  Save,
   School,
   ViewWeek,
 } from '@mui/icons-material';
@@ -31,6 +39,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import axiosInstance from '../../api/axios';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Footer from '../../components/Layout/Footer';
+import { useAuth } from '../../context/AuthContext';
 
 const MONTHS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -54,15 +63,23 @@ const SectionMonthBranchPage = () => {
   const { gradeId, groupId, month } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { isAdmin, isDocente } = useAuth();
   const monthNumber = Number(month);
+  const canManageWeeks = isAdmin || isDocente;
 
   const [grade, setGrade] = useState(null);
   const [group, setGroup] = useState(null);
+  const [monthRecord, setMonthRecord] = useState(null);
   const [subjects, setSubjects] = useState([]);
   const [planningItems, setPlanningItems] = useState([]);
   const [weekBranches, setWeekBranches] = useState([]);
+  const [rawWeeks, setRawWeeks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [savingWeek, setSavingWeek] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [weekDialogOpen, setWeekDialogOpen] = useState(false);
+  const [weekNumber, setWeekNumber] = useState('');
 
   const requestedView = searchParams.get('view') === 'activities' ? 'activities' : 'planning';
   const [activeView, setActiveView] = useState(requestedView);
@@ -147,8 +164,10 @@ const SectionMonthBranchPage = () => {
 
       setGrade(gradeRes.data);
       setGroup(groupRes.data);
+      setMonthRecord(currentMonthRecord);
       setSubjects(nextSubjects);
       setPlanningItems(planningData);
+      setRawWeeks(relevantWeeks);
       setWeekBranches(normalizedWeeks);
     } catch (err) {
       setError('No se pudo cargar la rama del mes seleccionado.');
@@ -169,6 +188,94 @@ const SectionMonthBranchPage = () => {
     }),
     [planningItems, weekBranches]
   );
+
+  const openWeekDialog = () => {
+    const nextNumber =
+      weekBranches.length > 0 ? Math.max(...weekBranches.map((item) => item.number)) + 1 : 1;
+    setWeekNumber(String(nextNumber));
+    setWeekDialogOpen(true);
+    setError('');
+    setSuccess('');
+  };
+
+  const handleCreateWeekBranch = async () => {
+    const parsedNumber = Number(weekNumber);
+
+    if (!Number.isInteger(parsedNumber) || parsedNumber <= 0) {
+      setError('La semana debe tener un numero mayor que cero.');
+      return;
+    }
+
+    if (!subjects.length) {
+      setError('No hay cursos en este grado para crear la semana.');
+      return;
+    }
+
+    if (!monthRecord?.id) {
+      setError('No se pudo identificar el mes actual para crear la semana.');
+      return;
+    }
+
+    const missingSubjects = subjects.filter(
+      (subject) =>
+        !rawWeeks.some(
+          (weekItem) =>
+            Number(weekItem.subject_id) === Number(subject.id) &&
+            Number(weekItem.number) === parsedNumber
+        )
+    );
+
+    if (missingSubjects.length === 0) {
+      setSuccess(`La semana ${parsedNumber} ya existe para todos los cursos de este grado.`);
+      setWeekDialogOpen(false);
+      return;
+    }
+
+    setSavingWeek(true);
+    setError('');
+
+    try {
+      const results = await Promise.allSettled(
+        missingSubjects.map((subject) =>
+          axiosInstance.post('/weeks/', {
+            number: parsedNumber,
+            month_id: monthRecord.id,
+            subject_id: subject.id,
+          })
+        )
+      );
+
+      const createdCount = results.filter((result) => result.status === 'fulfilled').length;
+      const failedResults = results.filter((result) => result.status === 'rejected');
+
+      if (createdCount > 0) {
+        const alreadyCount = subjects.length - missingSubjects.length;
+        const createdMessage =
+          alreadyCount > 0
+            ? `Semana ${parsedNumber} completada: ${createdCount} curso(s) nuevos y ${alreadyCount} ya existentes.`
+            : `Semana ${parsedNumber} creada para ${createdCount} curso(s).`;
+        setSuccess(createdMessage);
+      }
+
+      if (failedResults.length > 0) {
+        const firstDetail = failedResults[0]?.reason?.response?.data?.detail;
+        setError(
+          typeof firstDetail === 'string'
+            ? firstDetail
+            : `No se pudo crear la semana en ${failedResults.length} curso(s).`
+        );
+      }
+
+      if (createdCount > 0) {
+        setWeekDialogOpen(false);
+        await loadData();
+      }
+    } catch (err) {
+      setError(err.response?.data?.detail || 'No se pudo crear la nueva semana.');
+    } finally {
+      setSavingWeek(false);
+    }
+  };
 
   const handleTabChange = (_, value) => {
     setActiveView(value);
@@ -269,6 +376,11 @@ const SectionMonthBranchPage = () => {
         {error && (
           <Alert severity="error" sx={{ mb: 3, borderRadius: '16px' }} onClose={() => setError('')}>
             {error}
+          </Alert>
+        )}
+        {success && (
+          <Alert severity="success" sx={{ mb: 3, borderRadius: '16px' }} onClose={() => setSuccess('')}>
+            {success}
           </Alert>
         )}
 
@@ -431,6 +543,42 @@ const SectionMonthBranchPage = () => {
 
             {activeView === 'activities' && (
               <>
+                <Paper
+                  sx={{
+                    p: 2.2,
+                    borderRadius: '20px',
+                    mb: 2.5,
+                    bgcolor: '#f8fbff',
+                    border: '1px solid #e3eefc',
+                  }}
+                >
+                  <Stack
+                    direction={{ xs: 'column', md: 'row' }}
+                    spacing={1.5}
+                    justifyContent="space-between"
+                    alignItems={{ xs: 'flex-start', md: 'center' }}
+                  >
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight={800}>
+                        Semanas de actividades
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.4 }}>
+                        Cada nueva semana se crea para todos los cursos de {grade?.name || `Grado ${gradeId}`} en {monthLabel}.
+                      </Typography>
+                    </Box>
+                    {canManageWeeks && (
+                      <Button
+                        variant="contained"
+                        startIcon={<Add />}
+                        onClick={openWeekDialog}
+                        sx={{ whiteSpace: 'nowrap' }}
+                      >
+                        Nueva semana
+                      </Button>
+                    )}
+                  </Stack>
+                </Paper>
+
                 {weekBranches.length === 0 ? (
                   <Paper sx={{ p: 5, borderRadius: '22px', bgcolor: '#fafbfc', textAlign: 'center' }}>
                     <Typography variant="h6" fontWeight={800} sx={{ mb: 1 }}>
@@ -439,6 +587,11 @@ const SectionMonthBranchPage = () => {
                     <Typography color="text.secondary">
                       Cuando existan semanas y contenido en los cursos de este grado, apareceran aqui agrupados por semana.
                     </Typography>
+                    {canManageWeeks && (
+                      <Button variant="contained" startIcon={<Add />} sx={{ mt: 2 }} onClick={openWeekDialog}>
+                        Crear primera semana
+                      </Button>
+                    )}
                   </Paper>
                 ) : (
                   <Grid container spacing={2.5}>
@@ -534,6 +687,38 @@ const SectionMonthBranchPage = () => {
           </Box>
         </Paper>
       </Container>
+
+      <Dialog open={weekDialogOpen} onClose={() => !savingWeek && setWeekDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Nueva semana de actividades</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            type="number"
+            margin="dense"
+            label="Numero de semana"
+            value={weekNumber}
+            onChange={(event) => setWeekNumber(event.target.value)}
+            inputProps={{ min: 1, step: 1 }}
+          />
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+            Se creara la semana para {subjects.length} curso(s) del grado {grade?.name || gradeId} en {monthLabel}.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setWeekDialogOpen(false)} disabled={savingWeek}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleCreateWeekBranch}
+            disabled={savingWeek}
+            startIcon={savingWeek ? <CircularProgress size={16} color="inherit" /> : <Save />}
+          >
+            {savingWeek ? 'Creando...' : 'Crear semana'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Footer />
     </Box>
