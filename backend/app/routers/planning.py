@@ -1,7 +1,8 @@
 import json
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -199,10 +200,12 @@ def _apply_planning_payload(planning: Planning, data: dict) -> None:
 
 @router.get("/", response_model=List[PlanningResponse])
 def list_plannings(
+    response: Response,
     grade_id: Optional[int] = Query(None),
     month_id: Optional[int] = Query(None),
     group_id: Optional[int] = Query(None),
     planning_type: Optional[PlanningType] = Query(None),
+    search: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
@@ -248,6 +251,20 @@ def list_plannings(
         query = query.filter(Planning.group_id == group_id)
     if planning_type is not None:
         query = query.filter(Planning.planning_type == planning_type)
+    if search:
+        search_term = f"%{search.strip()}%"
+        query = query.filter(
+            or_(
+                Planning.title.ilike(search_term),
+                Planning.description.ilike(search_term),
+                Planning.unit_title.ilike(search_term),
+            )
+        )
+
+    total = query.count()
+    if response is not None:
+        response.headers["X-Total-Count"] = str(total)
+        response.headers["Access-Control-Expose-Headers"] = "X-Total-Count"
 
     items = (
         query.order_by(Planning.created_at.desc(), Planning.id.desc())

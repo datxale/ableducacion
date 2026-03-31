@@ -206,6 +206,23 @@ const ManagePlanning = () => {
     setDialogOpen(true);
   };
 
+  useEffect(() => {
+    if (loading) return;
+
+    const searchParams = new URLSearchParams(location.search);
+    const editId = Number(searchParams.get('edit'));
+    if (!editId) return;
+
+    const targetItem = items.find((item) => item.id === editId);
+    if (targetItem) {
+      openEditDialog(targetItem);
+    } else {
+      setError('El planificador solicitado ya no esta disponible.');
+    }
+
+    navigate(location.pathname, { replace: true });
+  }, [items, loading, location.pathname, location.search, navigate]);
+
   const handleBasicChange = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
