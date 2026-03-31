@@ -1,9 +1,11 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(BACKEND_DIR / ".env")
 
 
 class Settings(BaseSettings):
@@ -32,7 +34,7 @@ class Settings(BaseSettings):
     upload_dir: str = os.getenv("UPLOAD_DIR", "uploads")
 
     class Config:
-        env_file = ".env"
+        env_file = str(BACKEND_DIR / ".env")
         extra = "ignore"
 
 
