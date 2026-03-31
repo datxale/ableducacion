@@ -35,6 +35,15 @@ def create_tables():
 
 def apply_safe_schema_updates():
     with engine.begin() as connection:
+        if engine.dialect.name == "postgresql":
+            connection.execute(
+                text(
+                    """
+                    ALTER TYPE planningtype
+                    ADD VALUE IF NOT EXISTS 'planificador'
+                    """
+                )
+            )
         connection.execute(
             text(
                 """
@@ -200,6 +209,54 @@ def apply_safe_schema_updates():
                 """
                 ALTER TABLE users
                 ADD COLUMN IF NOT EXISTS group_id INTEGER
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                ALTER TABLE plannings
+                ADD COLUMN IF NOT EXISTS source_file_url VARCHAR(500)
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                ALTER TABLE plannings
+                ADD COLUMN IF NOT EXISTS unit_number VARCHAR(50)
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                ALTER TABLE plannings
+                ADD COLUMN IF NOT EXISTS unit_title VARCHAR(255)
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                ALTER TABLE plannings
+                ADD COLUMN IF NOT EXISTS situation_context TEXT
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                ALTER TABLE plannings
+                ADD COLUMN IF NOT EXISTS learning_challenge TEXT
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                ALTER TABLE plannings
+                ADD COLUMN IF NOT EXISTS structured_content_json TEXT
                 """
             )
         )

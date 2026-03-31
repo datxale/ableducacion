@@ -24,6 +24,7 @@ import {
 } from '@mui/material';
 import {
   CalendarMonth,
+  TableChart,
   Download,
   Home,
   Launch,
@@ -39,6 +40,7 @@ import { useAuth } from '../../context/AuthContext';
 import axiosInstance from '../../api/axios';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Footer from '../../components/Layout/Footer';
+import { getPlanningTypeMeta } from '../../utils/planning';
 
 const GOOGLE_CALENDAR_URL = 'https://calendar.google.com/calendar/u/0/r/week';
 const DEFAULT_CALENDAR_STATUS = {
@@ -145,6 +147,153 @@ const PlanningCard = ({ item, gradeName, monthName }) => (
   </Card>
 );
 
+const PlannerUnitCard = ({ item, gradeName, monthName }) => {
+  const planningMeta = getPlanningTypeMeta(item.planning_type);
+  const totalSessions = (item.structured_content || []).reduce(
+    (total, week) => total + (week.days || []).reduce((dayTotal, day) => dayTotal + (day.sessions || []).length, 0),
+    0,
+  );
+
+  return (
+    <Paper
+      sx={{
+        p: { xs: 2, md: 3 },
+        borderRadius: '24px',
+        boxShadow: '0 14px 36px rgba(15,23,42,0.08)',
+        border: '1px solid #ece7df',
+        background: 'linear-gradient(180deg, #fffdf8 0%, #ffffff 100%)',
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+        <Box>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+            <Chip
+              icon={<TableChart />}
+              label={planningMeta.label}
+              sx={{ bgcolor: planningMeta.bg, color: planningMeta.color, fontWeight: 800 }}
+            />
+            {gradeName && <Chip label={gradeName} size="small" />}
+            {monthName && <Chip label={monthName} size="small" />}
+            {item.unit_number && <Chip label={item.unit_number} size="small" sx={{ fontWeight: 700 }} />}
+          </Box>
+          <Typography variant="h4" fontWeight={900} sx={{ fontSize: { xs: '1.6rem', md: '2rem' }, color: '#3e2723', mb: 0.75 }}>
+            {item.unit_title || item.title}
+          </Typography>
+          {item.description && (
+            <Typography color="text.secondary" sx={{ maxWidth: 920, lineHeight: 1.75 }}>
+              {item.description}
+            </Typography>
+          )}
+        </Box>
+
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <Chip label={`${item.structured_content?.length || 0} semana(s)`} sx={{ fontWeight: 700 }} />
+          <Chip label={`${totalSessions} sesiones`} sx={{ fontWeight: 700 }} />
+        </Box>
+      </Box>
+
+      <Grid container spacing={2} sx={{ mb: 2.5 }}>
+        <Grid item xs={12} md={6}>
+          <Paper variant="outlined" sx={{ p: 2, borderRadius: '18px', height: '100%', background: '#faf7f2' }}>
+            <Typography variant="subtitle2" sx={{ color: '#8d6e63', fontWeight: 800, mb: 1 }}>
+              Situacion significativa
+            </Typography>
+            <Typography sx={{ color: '#5d4037', lineHeight: 1.75 }}>
+              {item.situation_context || 'Sin detalle registrado'}
+            </Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <Paper variant="outlined" sx={{ p: 2, borderRadius: '18px', height: '100%', background: '#f8fbff' }}>
+            <Typography variant="subtitle2" sx={{ color: '#1565c0', fontWeight: 800, mb: 1 }}>
+              Reto
+            </Typography>
+            <Typography sx={{ color: '#334155', lineHeight: 1.75 }}>
+              {item.learning_challenge || 'Sin reto registrado'}
+            </Typography>
+          </Paper>
+        </Grid>
+      </Grid>
+
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2.5 }}>
+        {item.source_file_url && (
+          <Button
+            variant="outlined"
+            startIcon={<Launch />}
+            href={item.source_file_url}
+            target="_blank"
+            rel="noreferrer"
+            sx={{ borderColor: '#6d4c41', color: '#6d4c41' }}
+          >
+            Ver PDF fuente
+          </Button>
+        )}
+        {item.file_url && (
+          <Button
+            variant="outlined"
+            startIcon={<Download />}
+            href={item.file_url}
+            target="_blank"
+            rel="noreferrer"
+            sx={{ borderColor: '#1565c0', color: '#1565c0' }}
+          >
+            Recurso adicional
+          </Button>
+        )}
+      </Box>
+
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {(item.structured_content || []).map((week, weekIndex) => (
+          <Paper key={`${item.id}-week-${weekIndex}`} variant="outlined" sx={{ p: 2, borderRadius: '20px', borderColor: '#ede7df' }}>
+            <Typography variant="h6" fontWeight={800} sx={{ color: '#4e342e', mb: 1.5 }}>
+              {week.title || `Semana ${weekIndex + 1}`}
+            </Typography>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(5, minmax(0, 1fr))' },
+                gap: 1.5,
+              }}
+            >
+              {(week.days || []).map((day, dayIndex) => (
+                <Paper key={`${item.id}-week-${weekIndex}-day-${dayIndex}`} variant="outlined" sx={{ p: 1.5, borderRadius: '16px', background: '#fffefb' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, mb: 1, alignItems: 'center' }}>
+                    <Typography variant="subtitle2" fontWeight={800} sx={{ color: '#3e2723' }}>
+                      {day.day_label}
+                    </Typography>
+                    {day.date_label && (
+                      <Chip label={day.date_label} size="small" sx={{ height: 24, fontWeight: 700 }} />
+                    )}
+                  </Box>
+
+                  {(day.sessions || []).length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      Sin sesiones registradas.
+                    </Typography>
+                  ) : (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {(day.sessions || []).map((session, sessionIndex) => (
+                        <Paper key={`${item.id}-week-${weekIndex}-day-${dayIndex}-session-${sessionIndex}`} sx={{ p: 1.2, borderRadius: '14px', background: '#f8fafc', boxShadow: 'none' }}>
+                          <Typography variant="caption" sx={{ display: 'block', color: '#1565c0', fontWeight: 800, mb: 0.35 }}>
+                            {session.subject}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#334155', lineHeight: 1.5 }}>
+                            {session.title}
+                          </Typography>
+                        </Paper>
+                      ))}
+                    </Box>
+                  )}
+                </Paper>
+              ))}
+            </Box>
+          </Paper>
+        ))}
+      </Box>
+    </Paper>
+  );
+};
+
 const PlanningPage = () => {
   const navigate = useNavigate();
   const { user, isEstudiante, isDocente, isAdmin } = useAuth();
@@ -246,6 +395,7 @@ const PlanningPage = () => {
     return (currentOrUpcoming.length > 0 ? currentOrUpcoming : agendaItems).slice(0, 5);
   }, [agendaItems]);
 
+  const planificadores = visibleItems.filter((item) => item.planning_type === 'planificador');
   const horarios = visibleItems.filter((item) => item.planning_type === 'horario');
   const guias = visibleItems.filter((item) => item.planning_type === 'guia');
   const currentItems = tabValue === 0 ? horarios : guias;
@@ -346,7 +496,7 @@ const PlanningPage = () => {
                 Planificacion
               </Typography>
               <Typography sx={{ color: 'rgba(255,255,255,0.9)', mt: 0.5 }}>
-                Horarios, guias y agenda de clases sincronizadas con Google
+                Planificadores por unidad, recursos pedagógicos y agenda de clases en vivo
               </Typography>
             </Box>
           </Box>
@@ -376,6 +526,69 @@ const PlanningPage = () => {
             p: 3,
             mb: 3,
             borderRadius: '24px',
+            background: 'linear-gradient(180deg, #fffdf8 0%, #ffffff 100%)',
+            border: '1px solid #f0e6d9',
+            boxShadow: '0 18px 50px rgba(78, 52, 46, 0.08)',
+          }}
+        >
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', alignItems: 'center', mb: 2.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Avatar sx={{ bgcolor: '#6d4c41', width: 52, height: 52 }}>
+                <TableChart />
+              </Avatar>
+              <Box>
+                <Typography variant="h5" fontWeight={800}>
+                  Planificador pedagogico
+                </Typography>
+                <Typography color="text.secondary">
+                  Esta seccion replica la estructura curricular por unidad, semanas, dias y sesiones, tal como se plantea en el planificador academico.
+                </Typography>
+              </Box>
+            </Box>
+
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Chip label={`${planificadores.length} unidad${planificadores.length === 1 ? '' : 'es'} publicada${planificadores.length === 1 ? '' : 's'}`} sx={{ fontWeight: 700 }} />
+              {isAdmin || isDocente ? (
+                <Button
+                  variant="contained"
+                  startIcon={<Settings />}
+                  onClick={() => navigate('/planning/manage')}
+                  sx={{ background: '#6d4c41', '&:hover': { background: '#5d4037' } }}
+                >
+                  Gestionar planificadores
+                </Button>
+              ) : null}
+            </Box>
+          </Box>
+
+          {planificadores.length === 0 ? (
+            <Paper variant="outlined" sx={{ p: 4, borderRadius: '20px', textAlign: 'center', background: '#fff' }}>
+              <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>
+                Aun no hay planificadores publicados
+              </Typography>
+              <Typography color="text.secondary">
+                Cuando se publique una unidad, aqui veras la situacion significativa, el reto y la matriz semanal de sesiones.
+              </Typography>
+            </Paper>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {planificadores.map((item) => (
+                <PlannerUnitCard
+                  key={item.id}
+                  item={item}
+                  gradeName={gradesById[item.grade_id]?.name}
+                  monthName={item.month_id ? monthsById[item.month_id]?.name : null}
+                />
+              ))}
+            </Box>
+          )}
+        </Paper>
+
+        <Paper
+          sx={{
+            p: 3,
+            mb: 3,
+            borderRadius: '24px',
             background: 'linear-gradient(135deg, #ffffff 0%, #fdf2ff 100%)',
             border: '1px solid #f3e5f5',
             boxShadow: '0 18px 50px rgba(84, 27, 94, 0.08)',
@@ -389,10 +602,10 @@ const PlanningPage = () => {
                 </Avatar>
                 <Box>
                   <Typography variant="h5" fontWeight={800}>
-                    Calendario Google
+                    Agenda de clases en vivo
                   </Typography>
                   <Typography color="text.secondary">
-                    Agenda sincronizada con Meet, Drive y la cuenta de Google conectada al servidor.
+                    Google Calendar queda como agenda sincronizada de Meet, Drive y clases en vivo, separada del planificador pedagogico.
                   </Typography>
                 </Box>
               </Box>
@@ -701,25 +914,25 @@ const PlanningPage = () => {
                 Crear y publicar planificacion
               </Typography>
               <Typography color="text.secondary">
-                Desde aqui puedes subir horarios y guias. Las clases que deben ir a Google Calendar se programan en Gestionar clases.
+                Desde aqui gestionas planificadores por unidad, horarios y guias. Las clases que deben ir a Google Calendar se programan aparte desde Gestionar clases.
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
               <Button
                 variant="contained"
-                startIcon={<Schedule />}
+                startIcon={<TableChart />}
                 onClick={() => navigate('/planning/manage')}
-                sx={{ background: '#ef6c00', '&:hover': { background: '#e65100' } }}
+                sx={{ background: '#6d4c41', '&:hover': { background: '#5d4037' } }}
               >
-                Crear horario
+                Nuevo planificador
               </Button>
               <Button
                 variant="outlined"
                 startIcon={<MenuBook />}
                 onClick={() => navigate('/planning/manage')}
-                sx={{ borderColor: '#ef6c00', color: '#ef6c00' }}
+                sx={{ borderColor: '#6d4c41', color: '#6d4c41' }}
               >
-                Subir guia
+                Ver recursos
               </Button>
             </Box>
           </Paper>
