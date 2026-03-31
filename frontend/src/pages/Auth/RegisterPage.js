@@ -11,8 +11,6 @@ import {
   Alert,
   Divider,
   CircularProgress,
-  ToggleButtonGroup,
-  ToggleButton,
   Grid,
   Stepper,
   Step,
@@ -26,13 +24,12 @@ import {
   Email,
   MenuBook,
   ArrowBack,
-  School,
-  Cast,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import WhatsAppFab from '../../components/common/WhatsAppFab';
 import { useAuth } from '../../context/AuthContext';
 
-const steps = ['Rol', 'Datos personales', 'Acceso'];
+const steps = ['Perfil', 'Datos personales', 'Acceso'];
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -40,12 +37,10 @@ const RegisterPage = () => {
 
   const [activeStep, setActiveStep] = useState(0);
   const [form, setForm] = useState({
-    username: '',
+    full_name: '',
     email: '',
     password: '',
     confirm_password: '',
-    first_name: '',
-    last_name: '',
     role: 'estudiante',
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -63,30 +58,31 @@ const RegisterPage = () => {
     if (activeStep === 0) {
       return true;
     }
+
     if (activeStep === 1) {
-      if (!form.first_name || !form.last_name) {
+      if (!form.full_name.trim()) {
         setError('Por favor ingresa tu nombre completo.');
         return false;
       }
+
       if (!form.email || !/\S+@\S+\.\S+/.test(form.email)) {
-        setError('Por favor ingresa un email válido.');
+        setError('Por favor ingresa un email valido.');
         return false;
       }
     }
+
     if (activeStep === 2) {
-      if (!form.username || form.username.length < 4) {
-        setError('El usuario debe tener al menos 4 caracteres.');
-        return false;
-      }
       if (!form.password || form.password.length < 6) {
-        setError('La contraseña debe tener al menos 6 caracteres.');
+        setError('La contrasena debe tener al menos 6 caracteres.');
         return false;
       }
+
       if (form.password !== form.confirm_password) {
-        setError('Las contraseñas no coinciden.');
+        setError('Las contrasenas no coinciden.');
         return false;
       }
     }
+
     return true;
   };
 
@@ -103,10 +99,16 @@ const RegisterPage = () => {
 
   const handleSubmit = async () => {
     if (!validateStep()) return;
+
     setLoading(true);
-    const { confirm_password, ...submitData } = form;
-    const result = await register(submitData);
+    const result = await register({
+      full_name: form.full_name.trim(),
+      email: form.email.trim(),
+      password: form.password,
+      role: form.role,
+    });
     setLoading(false);
+
     if (result.success) {
       setSuccess(true);
       setTimeout(() => navigate('/login'), 2500);
@@ -127,12 +129,12 @@ const RegisterPage = () => {
         }}
       >
         <Box sx={{ textAlign: 'center', color: '#fff' }}>
-          <Typography sx={{ fontSize: '6rem', mb: 2 }}>🎉</Typography>
+          <Typography sx={{ fontSize: '6rem', mb: 2 }}>OK</Typography>
           <Typography variant="h3" fontWeight={800} sx={{ mb: 2 }}>
-            ¡Registro exitoso!
+            Solicitud registrada
           </Typography>
           <Typography variant="h6" sx={{ opacity: 0.9 }}>
-            Redirigiendo al inicio de sesión...
+            Redirigiendo al inicio de sesion...
           </Typography>
         </Box>
       </Box>
@@ -190,7 +192,6 @@ const RegisterPage = () => {
             boxShadow: '0 40px 80px rgba(0,0,0,0.3)',
           }}
         >
-          {/* Header */}
           <Box
             sx={{
               background: 'linear-gradient(135deg, #1565c0, #42a5f5)',
@@ -210,15 +211,14 @@ const RegisterPage = () => {
               <MenuBook sx={{ color: '#fff', fontSize: '2.5rem' }} />
             </Box>
             <Typography variant="h4" fontWeight={800} sx={{ color: '#fff' }}>
-              Crear Cuenta 🌟
+              Registro institucional
             </Typography>
             <Typography sx={{ color: 'rgba(255,255,255,0.85)', mt: 0.5 }}>
-              Únete a la comunidad de ABL Educacion
+              Completa tus datos para solicitar acceso a ABL Educacion
             </Typography>
           </Box>
 
           <Box sx={{ p: 4 }}>
-            {/* Stepper */}
             <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
               {steps.map((label) => (
                 <Step key={label}>
@@ -233,29 +233,28 @@ const RegisterPage = () => {
               </Alert>
             )}
 
-            {/* Step 0: Role selection */}
             {activeStep === 0 && (
               <Box>
                 <Typography variant="h6" fontWeight={700} sx={{ mb: 1, textAlign: 'center' }}>
-                  ¿Quién eres?
+                  Quien eres
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3, textAlign: 'center' }}>
-                  Selecciona tu rol en la plataforma
+                  Selecciona tu perfil dentro de la plataforma
                 </Typography>
                 <Grid container spacing={2}>
                   {[
                     {
                       value: 'estudiante',
                       label: 'Estudiante',
-                      icon: '🎒',
-                      desc: 'Tengo entre 6 y 11 años y quiero aprender',
+                      icon: 'A',
+                      desc: 'Accedo a clases, actividades y seguimiento academico.',
                       color: '#4caf50',
                     },
                     {
                       value: 'docente',
                       label: 'Docente',
-                      icon: '👩‍🏫',
-                      desc: 'Soy maestro/a y quiero enseñar',
+                      icon: 'D',
+                      desc: 'Gestiono grupos, clases y acompanamiento de estudiantes.',
                       color: '#1976d2',
                     },
                   ].map((role) => (
@@ -290,35 +289,21 @@ const RegisterPage = () => {
               </Box>
             )}
 
-            {/* Step 1: Personal data */}
             {activeStep === 1 && (
               <Box>
                 <Typography variant="h6" fontWeight={700} sx={{ mb: 3, textAlign: 'center' }}>
-                  Cuéntanos sobre ti
+                  Cuentanos sobre ti
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3, textAlign: 'center' }}>
+                  Estos datos ayudaran a validar tu acceso institucional.
                 </Typography>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
+                  <Grid item xs={12}>
                     <TextField
                       fullWidth
-                      label="Nombre"
-                      name="first_name"
-                      value={form.first_name}
-                      onChange={handleChange}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <Person color="primary" />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Apellido"
-                      name="last_name"
-                      value={form.last_name}
+                      label="Nombre completo"
+                      name="full_name"
+                      value={form.full_name}
                       onChange={handleChange}
                       InputProps={{
                         startAdornment: (
@@ -350,36 +335,22 @@ const RegisterPage = () => {
               </Box>
             )}
 
-            {/* Step 2: Access data */}
             {activeStep === 2 && (
               <Box>
                 <Typography variant="h6" fontWeight={700} sx={{ mb: 3, textAlign: 'center' }}>
                   Crea tu acceso
                 </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3, textAlign: 'center' }}>
+                  Usa una contrasena segura para tu ingreso al portal.
+                </Typography>
                 <TextField
                   fullWidth
-                  label="Nombre de usuario"
-                  name="username"
-                  value={form.username}
-                  onChange={handleChange}
-                  helperText="Mínimo 4 caracteres, sin espacios"
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Person color="primary" />
-                      </InputAdornment>
-                    ),
-                  }}
-                  sx={{ mb: 2.5 }}
-                />
-                <TextField
-                  fullWidth
-                  label="Contraseña"
+                  label="Contrasena"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   value={form.password}
                   onChange={handleChange}
-                  helperText="Mínimo 6 caracteres"
+                  helperText="Minimo 6 caracteres"
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -398,7 +369,7 @@ const RegisterPage = () => {
                 />
                 <TextField
                   fullWidth
-                  label="Confirmar contraseña"
+                  label="Confirmar contrasena"
                   name="confirm_password"
                   type={showConfirm ? 'text' : 'password'}
                   value={form.confirm_password}
@@ -421,7 +392,6 @@ const RegisterPage = () => {
               </Box>
             )}
 
-            {/* Navigation buttons */}
             <Box sx={{ display: 'flex', gap: 2, mt: 4 }}>
               {activeStep > 0 && (
                 <Button
@@ -429,7 +399,7 @@ const RegisterPage = () => {
                   onClick={handleBack}
                   sx={{ flex: 1, py: 1.5, boxShadow: 'none', '&:hover': { boxShadow: 'none', transform: 'none' } }}
                 >
-                  Atrás
+                  Atras
                 </Button>
               )}
               {activeStep < steps.length - 1 ? (
@@ -447,14 +417,14 @@ const RegisterPage = () => {
                   disabled={loading}
                   sx={{ flex: 1, py: 1.5, fontSize: '1rem' }}
                 >
-                  {loading ? <CircularProgress size={24} color="inherit" /> : '¡Crear mi cuenta!'}
+                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Solicitar acceso'}
                 </Button>
               )}
             </Box>
 
             <Divider sx={{ my: 3 }}>
               <Typography variant="caption" color="text.secondary">
-                ¿Ya tienes cuenta?
+                Ya tienes cuenta
               </Typography>
             </Divider>
 
@@ -464,11 +434,12 @@ const RegisterPage = () => {
               onClick={() => navigate('/login')}
               sx={{ boxShadow: 'none', '&:hover': { boxShadow: 'none', transform: 'none' } }}
             >
-              Iniciar Sesión
+              Iniciar sesion
             </Button>
           </Box>
         </Paper>
       </Container>
+      <WhatsAppFab message="Hola, necesito apoyo con mi registro en ABL Educacion." />
     </Box>
   );
 };

@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  MenuItem,
   Paper,
   Table,
   TableBody,
@@ -35,9 +36,11 @@ import Footer from '../../components/Layout/Footer';
 
 const emptyForm = {
   title: '',
+  news_type: 'noticia',
   summary: '',
   content: '',
   image_url: '',
+  link_url: '',
 };
 
 const formatDate = (value) => {
@@ -92,9 +95,11 @@ const ManageNews = () => {
     setSelectedNews(item);
     setForm({
       title: item.title || '',
+      news_type: item.news_type || 'noticia',
       summary: item.summary || '',
       content: item.content || '',
       image_url: item.image_url || '',
+      link_url: item.link_url || '',
     });
     setDialogOpen(true);
   };
@@ -107,9 +112,11 @@ const ManageNews = () => {
   const handleSave = async () => {
     const payload = {
       title: form.title.trim(),
+      news_type: form.news_type,
       summary: form.summary.trim(),
       content: form.content.trim() || null,
       image_url: form.image_url.trim() || null,
+      link_url: form.link_url.trim() || null,
     };
 
     try {
@@ -204,10 +211,10 @@ const ManageNews = () => {
               </Box>
               <Box>
                 <Typography variant="h4" fontWeight={800} sx={{ color: '#fff' }}>
-                  Noticias
+                  Noticias y eventos
                 </Typography>
                 <Typography sx={{ color: 'rgba(255,255,255,0.92)' }}>
-                  Gestiona las noticias de la landing page
+                  Gestiona las noticias y eventos de la landing page
                 </Typography>
               </Box>
             </Box>
@@ -222,7 +229,7 @@ const ManageNews = () => {
                 '&:hover': { background: '#f7f7f7' },
               }}
             >
-              Nueva noticia
+              Nueva publicacion
             </Button>
           </Box>
         </Container>
@@ -246,6 +253,7 @@ const ManageNews = () => {
               <TableHead>
                 <TableRow sx={{ background: '#f5f7fa' }}>
                   <TableCell sx={{ fontWeight: 700 }}>Titulo</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Tipo</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Resumen</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Fecha</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Estado</TableCell>
@@ -255,7 +263,7 @@ const ManageNews = () => {
               <TableBody>
                 {news.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
                       <Typography sx={{ fontSize: '2.6rem', mb: 1 }}>📰</Typography>
                       <Typography color="text.secondary">
                         No hay noticias registradas. Crea la primera.
@@ -269,6 +277,13 @@ const ManageNews = () => {
                         <Typography variant="body2" fontWeight={700}>
                           {item.title}
                         </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={item.news_type === 'evento' ? 'Evento' : 'Noticia'}
+                          size="small"
+                          sx={{ bgcolor: item.news_type === 'evento' ? '#ede7f6' : '#e3f2fd', color: item.news_type === 'evento' ? '#6a1b9a' : '#1565c0', fontWeight: 700 }}
+                        />
                       </TableCell>
                       <TableCell sx={{ maxWidth: 360 }}>
                         <Typography
@@ -328,7 +343,7 @@ const ManageNews = () => {
         PaperProps={{ sx: { borderRadius: '20px' } }}
       >
         <DialogTitle sx={{ fontWeight: 700 }}>
-          {selectedNews ? 'Editar noticia' : 'Nueva noticia'}
+          {selectedNews ? 'Editar publicacion' : 'Nueva publicacion'}
         </DialogTitle>
         <DialogContent>
           <TextField
@@ -338,6 +353,17 @@ const ManageNews = () => {
             onChange={(event) => setForm({ ...form, title: event.target.value })}
             sx={{ mt: 1, mb: 2 }}
           />
+          <TextField
+            select
+            fullWidth
+            label="Tipo"
+            value={form.news_type}
+            onChange={(event) => setForm({ ...form, news_type: event.target.value })}
+            sx={{ mb: 2 }}
+          >
+            <MenuItem value="noticia">Noticia</MenuItem>
+            <MenuItem value="evento">Evento</MenuItem>
+          </TextField>
           <TextField
             label="Resumen"
             fullWidth
@@ -362,6 +388,14 @@ const ManageNews = () => {
             value={form.image_url}
             onChange={(event) => setForm({ ...form, image_url: event.target.value })}
             placeholder="https://..."
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            label="URL de destino"
+            fullWidth
+            value={form.link_url}
+            onChange={(event) => setForm({ ...form, link_url: event.target.value })}
+            placeholder="https://... o se abrira el detalle publico"
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>

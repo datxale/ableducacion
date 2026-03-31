@@ -1,172 +1,123 @@
 import React from 'react';
-import { Box, Container, Typography, Grid, Link, IconButton } from '@mui/material';
-import { WhatsApp, Email, Facebook, Instagram } from '@mui/icons-material';
+import { Box, Button, Container, Divider, Grid, IconButton, Link, Typography } from '@mui/material';
+import { Email, WhatsApp } from '@mui/icons-material';
 
-const Footer = () => {
-  return (
-    <Box
-      component="footer"
-      sx={{
-        background: 'linear-gradient(135deg, #1a237e 0%, #1565c0 50%, #2B7DE9 100%)',
-        color: '#fff',
-        pt: 6,
-        pb: 4,
-        mt: 'auto',
-      }}
-    >
-      <Container maxWidth="lg">
-        <Grid container spacing={4}>
-          {/* Brand & Info */}
-          <Grid item xs={12} md={4}>
-            <Box
-              component="img"
-              src="/logo.png"
-              alt="ABL Educación"
-              sx={{
-                height: 40,
-                width: 'auto',
-                mb: 2,
-                filter: 'brightness(0) invert(1)',
-              }}
-            />
-            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mb: 0.5 }}>
-              info@ableducacion.com
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mb: 0.5 }}>
-              WhatsApp: +51 929 220 076
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mb: 2 }}>
-              Lima, Perú
-            </Typography>
-            {/* Social icons */}
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <IconButton
-                href="https://wa.me/51929220076"
-                target="_blank"
-                size="small"
-                sx={{
-                  color: '#fff',
-                  background: 'rgba(255,255,255,0.15)',
-                  '&:hover': { background: '#25D366' },
-                }}
-              >
-                <WhatsApp fontSize="small" />
-              </IconButton>
-              <IconButton
-                size="small"
-                sx={{
-                  color: '#fff',
-                  background: 'rgba(255,255,255,0.15)',
-                  '&:hover': { background: '#1877f2' },
-                }}
-              >
-                <Facebook fontSize="small" />
-              </IconButton>
-              <IconButton
-                size="small"
-                sx={{
-                  color: '#fff',
-                  background: 'rgba(255,255,255,0.15)',
-                  '&:hover': { background: '#e1306c' },
-                }}
-              >
-                <Instagram fontSize="small" />
-              </IconButton>
-              <IconButton
-                href="mailto:info@ableducacion.com"
-                size="small"
-                sx={{
-                  color: '#fff',
-                  background: 'rgba(255,255,255,0.15)',
-                  '&:hover': { background: '#ea4335' },
-                }}
-              >
-                <Email fontSize="small" />
-              </IconButton>
-            </Box>
-          </Grid>
+import { CONTACT_INFO, getWhatsAppUrl } from '../../config/contact';
 
-          {/* Links */}
-          <Grid item xs={12} sm={6} md={4}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2, color: '#fff' }}>
-              Plataforma
-            </Typography>
-            {['Inicio', 'Grados', 'Clases en Vivo', 'Contacto'].map((item) => (
-              <Typography
-                key={item}
-                variant="body2"
-                sx={{
-                  color: 'rgba(255,255,255,0.7)',
-                  mb: 0.75,
-                  cursor: 'pointer',
-                  transition: 'color 0.2s',
-                  '&:hover': { color: '#fff' },
-                }}
-              >
-                {item}
-              </Typography>
-            ))}
-          </Grid>
+const companyLinks = [
+  { label: 'Inicio', href: '/inicio' },
+  { label: 'Quienes somos', href: '/inicio#quienes-somos' },
+  { label: 'Noticias y eventos', href: '/inicio#noticias' },
+  { label: 'Ingresar', href: '/login' },
+];
 
-          {/* Legal */}
-          <Grid item xs={12} sm={6} md={4}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2, color: '#fff' }}>
-              Legal
-            </Typography>
-            <Link
-              href="#"
-              underline="none"
-              sx={{
-                display: 'block',
-                color: 'rgba(255,255,255,0.7)',
-                mb: 0.75,
-                fontSize: '0.875rem',
-                transition: 'color 0.2s',
-                '&:hover': { color: '#fff' },
-              }}
+const supportLinks = [
+  { label: 'Terminos y condiciones', href: '#' },
+  { label: 'Politicas de privacidad', href: '#' },
+];
+
+const Footer = () => (
+  <Box
+    component="footer"
+    sx={{
+      mt: 'auto',
+      background:
+        'radial-gradient(circle at top left, rgba(66,165,245,0.35), transparent 30%), linear-gradient(135deg, #072b64 0%, #0d47a1 52%, #1976d2 100%)',
+      color: '#fff',
+      pt: { xs: 6, md: 8 },
+      pb: 4,
+    }}
+  >
+    <Container maxWidth="lg">
+      <Grid container spacing={4}>
+        <Grid item xs={12} md={5}>
+          <Box component="img" src="/logo.png" alt="ABL Educacion" sx={{ height: 42, mb: 2, filter: 'brightness(0) invert(1)' }} />
+          <Typography sx={{ maxWidth: 420, color: 'rgba(255,255,255,0.84)', lineHeight: 1.7, mb: 2 }}>
+            Plataforma educativa para clases, materiales, noticias, seguimiento academico y comunicacion entre estudiantes, docentes y administracion.
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.84)' }}>
+            Correo: {CONTACT_INFO.email}
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.84)' }}>
+            WhatsApp: {CONTACT_INFO.whatsappLabel}
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.84)', mb: 2 }}>
+            {CONTACT_INFO.location}
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Button
+              variant="contained"
+              href={`mailto:${CONTACT_INFO.email}`}
+              sx={{ textTransform: 'none', background: '#fff', color: '#0d47a1', '&:hover': { background: '#e3f2fd' } }}
             >
-              Términos y condiciones
-            </Link>
-            <Link
-              href="#"
-              underline="none"
-              sx={{
-                display: 'block',
-                color: 'rgba(255,255,255,0.7)',
-                mb: 0.75,
-                fontSize: '0.875rem',
-                transition: 'color 0.2s',
-                '&:hover': { color: '#fff' },
-              }}
+              Contactar empresa
+            </Button>
+            <Button
+              variant="outlined"
+              href={getWhatsAppUrl('Hola, necesito soporte sobre ABL Educacion.')}
+              target="_blank"
+              rel="noreferrer"
+              sx={{ textTransform: 'none', color: '#fff', borderColor: 'rgba(255,255,255,0.4)' }}
             >
-              Políticas de privacidad
-            </Link>
-          </Grid>
+              Soporte por WhatsApp
+            </Button>
+          </Box>
         </Grid>
 
-        {/* Bottom bar */}
-        <Box
-          sx={{
-            mt: 4,
-            pt: 3,
-            borderTop: '1px solid rgba(255,255,255,0.15)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 1,
-          }}
-        >
-          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>
-            © {new Date().getFullYear()} ABL Educación
+        <Grid item xs={12} sm={6} md={3}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 2 }}>
+            Empresa
           </Typography>
-          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>
-            Todos los derechos reservados
+          {companyLinks.map((item) => (
+            <Link key={item.label} href={item.href} underline="none" sx={{ display: 'block', color: 'rgba(255,255,255,0.76)', mb: 1.1 }}>
+              {item.label}
+            </Link>
+          ))}
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={4}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 2 }}>
+            Datos y soporte
           </Typography>
-        </Box>
-      </Container>
-    </Box>
-  );
-};
+          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.76)', mb: 1 }}>
+            Atencion digital para estudiantes, docentes, familias y direccion academica.
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.76)', mb: 1 }}>
+            Horario sugerido de soporte: lunes a viernes de 8:00 a.m. a 6:00 p.m.
+          </Typography>
+          {supportLinks.map((item) => (
+            <Link key={item.label} href={item.href} underline="none" sx={{ display: 'block', color: 'rgba(255,255,255,0.76)', mb: 1 }}>
+              {item.label}
+            </Link>
+          ))}
+          <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+            <IconButton
+              href={getWhatsAppUrl('Hola, deseo comunicarme con ABL Educacion.')}
+              target="_blank"
+              rel="noreferrer"
+              sx={{ color: '#fff', bgcolor: 'rgba(255,255,255,0.12)' }}
+            >
+              <WhatsApp fontSize="small" />
+            </IconButton>
+            <IconButton href={`mailto:${CONTACT_INFO.email}`} sx={{ color: '#fff', bgcolor: 'rgba(255,255,255,0.12)' }}>
+              <Email fontSize="small" />
+            </IconButton>
+          </Box>
+        </Grid>
+      </Grid>
+
+      <Divider sx={{ borderColor: 'rgba(255,255,255,0.16)', my: 4 }} />
+
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.68)' }}>
+          © {new Date().getFullYear()} ABL Educacion. Plataforma y soporte institucional.
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.68)' }}>
+          Todos los derechos reservados.
+        </Typography>
+      </Box>
+    </Container>
+  </Box>
+);
 
 export default Footer;

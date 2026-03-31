@@ -20,8 +20,6 @@ import {
   Alert,
   Chip,
   Rating,
-  Switch,
-  FormControlLabel,
 } from '@mui/material';
 import {
   Add,

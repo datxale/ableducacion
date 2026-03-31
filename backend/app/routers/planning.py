@@ -8,6 +8,8 @@ from app.models.month import Month
 from app.schemas.planning import PlanningCreate, PlanningUpdate, PlanningResponse
 from app.middleware.auth import get_current_user, require_admin_or_docente
 from app.models.planning import PlanningType
+from app.models.notification import NotificationType
+from app.services.notifications import notify_grade_students
 
 router = APIRouter(prefix="/api/planning", tags=["Planificación"])
 
@@ -70,6 +72,15 @@ def create_planning(
     db.add(planning)
     db.commit()
     db.refresh(planning)
+    notify_grade_students(
+        db,
+        grade_id=planning.grade_id,
+        title="Nuevo recurso de planificacion",
+        message=f"Se publico {planning.title} para tu grado.",
+        notification_type=NotificationType.planning,
+        link="/planning",
+    )
+    db.commit()
     return planning
 
 

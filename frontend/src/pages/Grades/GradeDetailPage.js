@@ -1,62 +1,297 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
+  Avatar,
   Box,
-  Container,
-  Typography,
-  Grid,
+  Breadcrumbs,
+  Button,
   Card,
   CardContent,
-  Alert,
-  Breadcrumbs,
-  Link,
-  Avatar,
   Chip,
+  Container,
+  FormControl,
+  Grid,
+  InputLabel,
+  Link,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  Tab,
+  Tabs,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
 } from '@mui/material';
-import { Home, School, ArrowForward } from '@mui/icons-material';
+import {
+  Add,
+  ArrowForward,
+  Clear,
+  Delete,
+  Edit,
+  Groups,
+  Home,
+  Save,
+  School,
+} from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
+
 import axiosInstance from '../../api/axios';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Footer from '../../components/Layout/Footer';
-import { subjectColors, gradeColors } from '../../styles/theme';
+import { useAuth } from '../../context/AuthContext';
+import { gradeColors, subjectColors } from '../../styles/theme';
 
-const subjectIcons = ['📐', '📚', '🌍', '🔬', '🎨', '💻', '⚽', '🎵', '🌱', '🏛️'];
+const emptySubjectForm = { id: null, name: '' };
+const emptyGroupForm = {
+  id: null,
+  name: '',
+  description: '',
+  teacher_id: '',
+  is_active: true,
+};
 
 const GradeDetailPage = () => {
   const { gradeId } = useParams();
   const navigate = useNavigate();
+  const { user, isAdmin, isDocente } = useAuth();
+  const canManageGroups = isAdmin || isDocente;
 
   const [grade, setGrade] = useState(null);
   const [subjects, setSubjects] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [savingSubject, setSavingSubject] = useState(false);
+  const [savingGroup, setSavingGroup] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [activeTab, setActiveTab] = useState(0);
+  const [selectedGroupId, setSelectedGroupId] = useState('');
+  const [subjectSearch, setSubjectSearch] = useState('');
+  const [groupSearch, setGroupSearch] = useState('');
+  const [groupStatusFilter, setGroupStatusFilter] = useState('all');
+  const [groupTeacherFilter, setGroupTeacherFilter] = useState('all');
+  const [subjectForm, setSubjectForm] = useState(emptySubjectForm);
+  const [groupForm, setGroupForm] = useState(emptyGroupForm);
 
-  useEffect(() => {
-    const fetchData = async () => {
+  const loadGradeData = useCallback(
+    async (showLoader = true) => {
+      if (showLoader) {
+        setLoading(true);
+      }
+
       try {
-        const [gradeRes, subjectsRes] = await Promise.all([
+        const requests = [
           axiosInstance.get(`/grades/${gradeId}/`),
-          axiosInstance.get(`/subjects/?grade=${gradeId}`),
-        ]);
+          axiosInstance.get(`/subjects/?grade_id=${gradeId}`),
+          axiosInstance.get('/groups/', { params: { grade_id: gradeId } }).catch(() => ({ data: [] })),
+        ];
+
+        if (isAdmin) {
+          requests.push(
+            axiosInstance.get('/users/', { params: { role: 'docente' } }).catch(() => ({ data: [] }))
+          );
+        }
+
+        const [gradeRes, subjectsRes, groupsRes, teachersRes] = await Promise.all(requests);
         setGrade(gradeRes.data);
         setSubjects(subjectsRes.data?.results || subjectsRes.data || []);
+        setGroups(groupsRes.data?.results || groupsRes.data || []);
+        setTeachers((teachersRes?.data?.results || teachersRes?.data || []).filter(Boolean));
       } catch (err) {
-        setError('Error al cargar la información del grado.');
-        console.error(err);
+        setError('Error al cargar la informacion del grado.');
       } finally {
-        setLoading(false);
+        if (showLoader) {
+          setLoading(false);
+        }
       }
-    };
-    fetchData();
-  }, [gradeId]);
+    },
+    [gradeId, isAdmin]
+  );
 
-  if (loading) return <LoadingSpinner message="Cargando materias..." />;
+  useEffect(() => {
+    loadGradeData(true);
+  }, [loadGradeData]);
 
-  const gradeIndex = parseInt(gradeId) - 1;
+  const gradeIndex = Math.max(parseInt(gradeId, 10) - 1, 0);
   const colorSet = gradeColors[gradeIndex % gradeColors.length];
+
+  const filteredSubjects = useMemo(() => {
+    if (groups.length > 0 && !selectedGroupId) return [];
+    const query = subjectSearch.trim().toLowerCase();
+    if (!query) return subjects;
+    return subjects.filter((subject) => subject.name.toLowerCase().includes(query));
+  }, [groups.length, selectedGroupId, subjectSearch, subjects]);
+
+  const teachersById = useMemo(
+    () => Object.fromEntries(teachers.map((teacher) => [teacher.id, teacher])),
+    [teachers]
+  );
+
+  const filteredGroups = useMemo(() => {
+    const query = groupSearch.trim().toLowerCase();
+
+    return groups.filter((group) => {
+      if (groupStatusFilter === 'active' && !group.is_active) return false;
+      if (groupStatusFilter === 'inactive' && group.is_active) return false;
+      if (groupTeacherFilter !== 'all' && String(group.teacher_id || '') !== String(groupTeacherFilter)) {
+        return false;
+      }
+
+      if (!query) return true;
+
+      const teacherName =
+        group.teacher?.full_name ||
+        teachersById[group.teacher_id]?.full_name ||
+        '';
+
+      return [group.name, group.description || '', teacherName]
+        .join(' ')
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [groupSearch, groupStatusFilter, groupTeacherFilter, groups, teachersById]);
+
+  const selectedGroup = useMemo(
+    () => groups.find((group) => String(group.id) === String(selectedGroupId)) || null,
+    [groups, selectedGroupId]
+  );
+
+  useEffect(() => {
+    if (selectedGroupId && !groups.some((group) => String(group.id) === String(selectedGroupId))) {
+      setSelectedGroupId('');
+    }
+    if (!selectedGroupId && groups.length === 1) {
+      setSelectedGroupId(String(groups[0].id));
+    }
+  }, [groups, selectedGroupId]);
+
+  const resetMessages = () => {
+    setError('');
+    setSuccess('');
+  };
+
+  const handleSaveSubject = async () => {
+    if (!subjectForm.name.trim()) return;
+
+    resetMessages();
+    setSavingSubject(true);
+    try {
+      const payload = {
+        name: subjectForm.name.trim(),
+        grade_id: Number(gradeId),
+      };
+
+      if (subjectForm.id) {
+        await axiosInstance.put(`/subjects/${subjectForm.id}`, payload);
+        setSuccess('Materia actualizada.');
+      } else {
+        await axiosInstance.post('/subjects/', payload);
+        setSuccess('Materia creada.');
+      }
+
+      setSubjectForm(emptySubjectForm);
+      await loadGradeData(false);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'No se pudo guardar la materia.');
+    } finally {
+      setSavingSubject(false);
+    }
+  };
+
+  const handleDeleteSubject = async (subject) => {
+    if (!window.confirm(`Se eliminara la materia "${subject.name}". Deseas continuar?`)) {
+      return;
+    }
+
+    resetMessages();
+    setSavingSubject(true);
+    try {
+      await axiosInstance.delete(`/subjects/${subject.id}`);
+      setSuccess('Materia eliminada.');
+      if (subjectForm.id === subject.id) {
+        setSubjectForm(emptySubjectForm);
+      }
+      await loadGradeData(false);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'No se pudo eliminar la materia.');
+    } finally {
+      setSavingSubject(false);
+    }
+  };
+
+  const handleSaveGroup = async () => {
+    if (!groupForm.name.trim()) return;
+
+    resetMessages();
+    setSavingGroup(true);
+    try {
+      const payload = {
+        name: groupForm.name.trim(),
+        description: groupForm.description.trim() || null,
+        grade_id: Number(gradeId),
+        teacher_id: isDocente && !isAdmin ? user?.id : groupForm.teacher_id ? Number(groupForm.teacher_id) : null,
+        is_active: !!groupForm.is_active,
+      };
+
+      if (groupForm.id) {
+        await axiosInstance.put(`/groups/${groupForm.id}`, payload);
+        setSuccess('Seccion actualizada.');
+      } else {
+        await axiosInstance.post('/groups/', payload);
+        setSuccess('Seccion creada.');
+      }
+
+      setGroupForm(emptyGroupForm);
+      await loadGradeData(false);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'No se pudo guardar la seccion.');
+    } finally {
+      setSavingGroup(false);
+    }
+  };
+
+  const handleDeleteGroup = async (group) => {
+    if (!window.confirm(`Se eliminara la seccion "${group.name}". Deseas continuar?`)) {
+      return;
+    }
+
+    resetMessages();
+    setSavingGroup(true);
+    try {
+      await axiosInstance.delete(`/groups/${group.id}`);
+      setSuccess('Seccion eliminada.');
+      if (groupForm.id === group.id) {
+        setGroupForm(emptyGroupForm);
+      }
+      await loadGradeData(false);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'No se pudo eliminar la seccion.');
+    } finally {
+      setSavingGroup(false);
+    }
+  };
+
+  const handleOpenGroupSubjects = (group) => {
+    setSelectedGroupId(String(group.id));
+    setActiveTab(1);
+    setSuccess(`Seccion "${group.name}" seleccionada. Ahora estas viendo sus materias.`);
+    setError('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  if (loading) {
+    return <LoadingSpinner message="Cargando estructura del grado..." />;
+  }
 
   return (
     <Box sx={{ background: '#f5f7fa', minHeight: '100vh' }}>
-      {/* Header */}
       <Box
         sx={{
           background: colorSet.bg,
@@ -87,8 +322,9 @@ const GradeDetailPage = () => {
             background: 'rgba(255,255,255,0.08)',
           }}
         />
+
         <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
-          <Breadcrumbs sx={{ mb: 2 }} separator="›">
+          <Breadcrumbs sx={{ mb: 2 }} separator=">">
             <Link
               component="button"
               onClick={() => navigate('/dashboard')}
@@ -107,7 +343,12 @@ const GradeDetailPage = () => {
             <Link
               component="button"
               onClick={() => navigate('/grades')}
-              sx={{ color: 'rgba(255,255,255,0.75)', textDecoration: 'none', fontSize: '0.9rem', '&:hover': { color: '#fff' } }}
+              sx={{
+                color: 'rgba(255,255,255,0.75)',
+                textDecoration: 'none',
+                fontSize: '0.9rem',
+                '&:hover': { color: '#fff' },
+              }}
             >
               Grados
             </Link>
@@ -117,37 +358,51 @@ const GradeDetailPage = () => {
           </Breadcrumbs>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-            <Box
+            <Avatar
               sx={{
-                background: 'rgba(255,255,255,0.25)',
-                borderRadius: '20px',
-                p: 2,
-                fontSize: '3rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 80,
-                height: 80,
+                bgcolor: 'rgba(255,255,255,0.2)',
+                width: 84,
+                height: 84,
+                border: '2px solid rgba(255,255,255,0.15)',
               }}
             >
-              {['🌟', '🚀', '🎨', '🦁', '🌈', '🏆'][gradeIndex % 6]}
-            </Box>
+              <School sx={{ color: '#fff', fontSize: '2.8rem' }} />
+            </Avatar>
             <Box>
               <Typography variant="h3" fontWeight={800} sx={{ color: '#fff', lineHeight: 1 }}>
-                {grade?.name || `${gradeId}° Grado`}
+                {grade?.name || `${gradeId} Grado`}
               </Typography>
               <Typography sx={{ color: 'rgba(255,255,255,0.9)', mt: 0.5, fontSize: '1.1rem' }}>
-                {grade?.description || 'Selecciona una materia para empezar'}
+                {grade?.description || 'Primero gestiona secciones y luego continua con materias.'}
               </Typography>
-              <Chip
-                label={`${subjects.length} materia${subjects.length !== 1 ? 's' : ''}`}
-                sx={{
-                  background: 'rgba(255,255,255,0.25)',
-                  color: '#fff',
-                  fontWeight: 700,
-                  mt: 1,
-                }}
-              />
+              <Stack direction="row" spacing={1} sx={{ mt: 1.5, flexWrap: 'wrap' }}>
+                <Chip
+                  label={`${groups.length} seccion${groups.length !== 1 ? 'es' : ''}`}
+                  sx={{
+                    background: 'rgba(255,255,255,0.22)',
+                    color: '#fff',
+                    fontWeight: 700,
+                  }}
+                />
+                <Chip
+                  label={`${subjects.length} materia${subjects.length !== 1 ? 's' : ''}`}
+                  sx={{
+                    background: 'rgba(255,255,255,0.22)',
+                    color: '#fff',
+                    fontWeight: 700,
+                  }}
+                />
+                {canManageGroups && (
+                  <Chip
+                    label="Gestion habilitada"
+                    sx={{
+                      background: 'rgba(255,255,255,0.15)',
+                      color: '#fff',
+                      fontWeight: 700,
+                    }}
+                  />
+                )}
+              </Stack>
             </Box>
           </Box>
         </Container>
@@ -155,94 +410,524 @@ const GradeDetailPage = () => {
 
       <Container maxWidth="lg" sx={{ py: 5 }}>
         {error && (
-          <Alert severity="error" sx={{ mb: 3, borderRadius: '12px' }}>
+          <Alert severity="error" sx={{ mb: 2, borderRadius: '12px' }} onClose={() => setError('')}>
             {error}
           </Alert>
         )}
+        {success && (
+          <Alert severity="success" sx={{ mb: 2, borderRadius: '12px' }} onClose={() => setSuccess('')}>
+            {success}
+          </Alert>
+        )}
 
-        {subjects.length === 0 ? (
-          <Box sx={{ textAlign: 'center', py: 8 }}>
-            <Typography sx={{ fontSize: '5rem', mb: 2 }}>📖</Typography>
-            <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>
-              No hay materias aún
-            </Typography>
-            <Typography color="text.secondary">
-              Las materias para este grado serán añadidas pronto.
-            </Typography>
-          </Box>
-        ) : (
-          <>
-            <Typography variant="h5" fontWeight={700} sx={{ mb: 3 }}>
-              Materias disponibles 📘
-            </Typography>
-            <Grid container spacing={3}>
-              {subjects.map((subject, index) => {
-                const color = subjectColors[index % subjectColors.length];
-                const icon = subjectIcons[index % subjectIcons.length];
-                return (
-                  <Grid item xs={12} sm={6} md={4} key={subject.id}>
-                    <Card
-                      onClick={() => navigate(`/subjects/${subject.id}`)}
-                      sx={{
-                        cursor: 'pointer',
-                        border: `3px solid ${color}22`,
-                        '&:hover': {
-                          border: `3px solid ${color}66`,
-                          transform: 'translateY(-6px)',
-                        },
-                        height: '100%',
-                      }}
+        <Paper
+          sx={{
+            borderRadius: '24px',
+            boxShadow: '0 10px 32px rgba(15, 23, 42, 0.08)',
+            overflow: 'hidden',
+          }}
+        >
+          <Tabs value={activeTab} onChange={(_, value) => setActiveTab(value)} sx={{ px: 2, pt: 1.5 }}>
+            <Tab label={`Secciones (${groups.length})`} />
+            <Tab
+              label={
+                selectedGroup
+                  ? `Materias de ${selectedGroup.name} (${subjects.length})`
+                  : 'Materias de la seccion'
+              }
+              disabled={!selectedGroup}
+            />
+          </Tabs>
+
+          <Box sx={{ p: 3 }}>
+            {activeTab === 0 && (
+              <>
+                <Typography variant="h5" fontWeight={800} sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Groups color="primary" /> Secciones del grado
+                </Typography>
+                <Typography color="text.secondary" sx={{ mb: 3 }}>
+                  Al entrar a un grado, primero revisas y gestionas sus secciones. Dentro de cada seccion quedan sus materias, meses, semanas y contenidos.
+                </Typography>
+
+                <Paper sx={{ p: 2.5, borderRadius: '20px', border: '1px solid #edf2f7', boxShadow: 'none', mb: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 2 }}>
+                    Filtros de secciones
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={isAdmin ? 4 : 7}>
+                      <TextField
+                        fullWidth
+                        label="Buscar seccion"
+                        placeholder="Nombre, descripcion o docente"
+                        value={groupSearch}
+                        onChange={(event) => setGroupSearch(event.target.value)}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={isAdmin ? 3 : 3}>
+                      <FormControl fullWidth>
+                        <InputLabel>Estado</InputLabel>
+                        <Select value={groupStatusFilter} label="Estado" onChange={(event) => setGroupStatusFilter(event.target.value)}>
+                          <MenuItem value="all">Todos</MenuItem>
+                          <MenuItem value="active">Activos</MenuItem>
+                          <MenuItem value="inactive">Inactivos</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    {isAdmin && (
+                      <Grid item xs={12} md={3}>
+                        <FormControl fullWidth>
+                          <InputLabel>Docente</InputLabel>
+                          <Select value={groupTeacherFilter} label="Docente" onChange={(event) => setGroupTeacherFilter(event.target.value)}>
+                            <MenuItem value="all">Todos</MenuItem>
+                            <MenuItem value="">Sin docente</MenuItem>
+                            {teachers.map((teacher) => (
+                              <MenuItem key={teacher.id} value={teacher.id}>
+                                {teacher.full_name}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                    )}
+                    <Grid item xs={12} md={2}>
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        onClick={() => {
+                          setGroupSearch('');
+                          setGroupStatusFilter('all');
+                          setGroupTeacherFilter('all');
+                        }}
+                        sx={{ height: '100%' }}
+                      >
+                        Limpiar filtros
+                      </Button>
+                    </Grid>
+                  </Grid>
+                </Paper>
+
+                {canManageGroups && (
+                  <Paper sx={{ p: 2.5, borderRadius: '20px', border: '1px solid #edf2f7', boxShadow: 'none', mb: 3 }}>
+                    <Stack
+                      direction={{ xs: 'column', md: 'row' }}
+                      justifyContent="space-between"
+                      alignItems={{ xs: 'flex-start', md: 'center' }}
+                      spacing={1}
+                      sx={{ mb: 2 }}
                     >
-                      <CardContent sx={{ p: 3 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                          <Avatar
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight={800}>
+                          {groupForm.id ? `Editar seccion: ${groupForm.name || 'sin nombre'}` : 'Nueva seccion'}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Crea o actualiza la seccion y luego entra a sus materias.
+                        </Typography>
+                      </Box>
+                      {groupForm.id && (
+                        <Chip
+                          label={groupForm.is_active ? 'Activa' : 'Inactiva'}
+                          color={groupForm.is_active ? 'success' : 'default'}
+                          sx={{ fontWeight: 700 }}
+                        />
+                      )}
+                    </Stack>
+
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={3}>
+                        <TextField
+                          fullWidth
+                          label="Nombre de la seccion"
+                          placeholder="Ejemplo: Seccion A"
+                          value={groupForm.name}
+                          onChange={(event) => setGroupForm((current) => ({ ...current, name: event.target.value }))}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <TextField
+                          fullWidth
+                          label="Descripcion"
+                          placeholder="Turno, aula o detalle adicional"
+                          value={groupForm.description}
+                          onChange={(event) => setGroupForm((current) => ({ ...current, description: event.target.value }))}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={2}>
+                        {isAdmin ? (
+                          <FormControl fullWidth>
+                            <InputLabel>Docente</InputLabel>
+                            <Select
+                              value={groupForm.teacher_id}
+                              label="Docente"
+                              onChange={(event) => setGroupForm((current) => ({ ...current, teacher_id: event.target.value }))}
+                            >
+                              <MenuItem value="">Sin docente</MenuItem>
+                              {teachers.map((teacher) => (
+                                <MenuItem key={teacher.id} value={teacher.id}>
+                                  {teacher.full_name}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        ) : (
+                          <TextField fullWidth label="Docente" value={user?.full_name || ''} disabled />
+                        )}
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <FormControl fullWidth>
+                          <InputLabel>Estado de la seccion</InputLabel>
+                          <Select
+                            value={groupForm.is_active ? 'active' : 'inactive'}
+                            label="Estado de la seccion"
+                            onChange={(event) =>
+                              setGroupForm((current) => ({
+                                ...current,
+                                is_active: event.target.value === 'active',
+                              }))
+                            }
+                          >
+                            <MenuItem value="active">Activa</MenuItem>
+                            <MenuItem value="inactive">Inactiva</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                          <Button
+                            variant="contained"
+                            startIcon={groupForm.id ? <Save /> : <Add />}
+                            onClick={handleSaveGroup}
+                            disabled={savingGroup || !groupForm.name.trim()}
+                          >
+                            {groupForm.id ? 'Actualizar seccion' : 'Agregar seccion'}
+                          </Button>
+                          {groupForm.id && (
+                            <Button
+                              variant="outlined"
+                              color="inherit"
+                              startIcon={<Clear />}
+                              onClick={() => setGroupForm(emptyGroupForm)}
+                              disabled={savingGroup}
+                            >
+                              Cancelar edicion
+                            </Button>
+                          )}
+                        </Stack>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                )}
+
+                {filteredGroups.length === 0 ? (
+                  <Paper sx={{ p: 5, textAlign: 'center', borderRadius: '20px', bgcolor: '#fafbfc' }}>
+                    <Typography variant="h6" fontWeight={800} sx={{ mb: 1 }}>
+                      {groups.length === 0 ? 'No hay secciones aun' : 'No hay secciones para ese filtro'}
+                    </Typography>
+                    <Typography color="text.secondary">
+                      {groups.length === 0
+                        ? canManageGroups
+                          ? 'Crea la primera seccion del grado desde el formulario superior.'
+                          : 'Aun no hay secciones registradas para este grado.'
+                        : 'Prueba con otro filtro o limpia la busqueda actual.'}
+                    </Typography>
+                  </Paper>
+                ) : (
+                  <TableContainer component={Paper} sx={{ borderRadius: '20px', boxShadow: 'none', border: '1px solid #edf2f7' }}>
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Seccion</TableCell>
+                          <TableCell>Docente</TableCell>
+                          <TableCell>Estado</TableCell>
+                          {canManageGroups && <TableCell align="right">Acciones</TableCell>}
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {filteredGroups.map((group) => {
+                          const teacherName =
+                            group.teacher?.full_name ||
+                            teachersById[group.teacher_id]?.full_name ||
+                            (group.teacher_id === user?.id ? user.full_name : 'Sin docente');
+
+                          return (
+                            <TableRow key={group.id} hover>
+                              <TableCell>
+                                <Typography fontWeight={800}>{group.name}</Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {group.description || 'Sin descripcion'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>{teacherName}</TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={group.is_active ? 'Activa' : 'Inactiva'}
+                                  size="small"
+                                  sx={
+                                    group.is_active
+                                      ? { bgcolor: '#e8f5e9', color: '#2e7d32', fontWeight: 800 }
+                                      : { bgcolor: '#eceff1', color: '#546e7a', fontWeight: 800 }
+                                  }
+                                />
+                              </TableCell>
+                              {canManageGroups && (
+                                <TableCell align="right">
+                                  <Button
+                                    size="small"
+                                    startIcon={<ArrowForward />}
+                                    onClick={() => handleOpenGroupSubjects(group)}
+                                  >
+                                    Ver materias
+                                  </Button>
+                                  <Button
+                                    size="small"
+                                    startIcon={<Edit />}
+                                    onClick={() => {
+                                      setGroupForm({
+                                        id: group.id,
+                                        name: group.name,
+                                        description: group.description || '',
+                                        teacher_id: group.teacher_id || '',
+                                        is_active: group.is_active !== false,
+                                      });
+                                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }}
+                                  >
+                                    Editar
+                                  </Button>
+                                  <Button size="small" color="error" startIcon={<Delete />} onClick={() => handleDeleteGroup(group)}>
+                                    Eliminar
+                                  </Button>
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
+              </>
+            )}
+
+            {activeTab === 1 && (
+              <>
+                <Stack
+                  direction={{ xs: 'column', md: 'row' }}
+                  spacing={1.5}
+                  justifyContent="space-between"
+                  alignItems={{ xs: 'flex-start', md: 'center' }}
+                  sx={{ mb: 3 }}
+                >
+                  <Box>
+                    <Typography variant="h5" fontWeight={700}>
+                      {selectedGroup ? `Materias de ${selectedGroup.name}` : 'Materias disponibles'}
+                    </Typography>
+                    <Typography color="text.secondary">
+                      {selectedGroup
+                        ? `Estas trabajando dentro de la seccion ${selectedGroup.name}.`
+                        : 'Primero selecciona una seccion para ver sus materias.'}
+                    </Typography>
+                  </Box>
+                  <Stack direction="row" spacing={1} flexWrap="wrap">
+                    {selectedGroup && (
+                      <Chip
+                        label={`Seccion activa: ${selectedGroup.name}`}
+                        color="primary"
+                        sx={{ fontWeight: 700 }}
+                      />
+                    )}
+                    <Button variant="outlined" onClick={() => setActiveTab(0)}>
+                      Volver a secciones
+                    </Button>
+                  </Stack>
+                </Stack>
+
+                {!selectedGroup && groups.length > 0 && (
+                  <Paper sx={{ p: 4, textAlign: 'center', borderRadius: '20px', mb: 3, bgcolor: '#fafbfc' }}>
+                    <Typography variant="h6" fontWeight={800} sx={{ mb: 1 }}>
+                      Primero elige una seccion
+                    </Typography>
+                    <Typography color="text.secondary" sx={{ mb: 2 }}>
+                      Las materias quedan anexadas a la seccion seleccionada. Usa "Ver materias" en la pestana de secciones.
+                    </Typography>
+                    <Button variant="contained" onClick={() => setActiveTab(0)}>
+                      Ir a secciones
+                    </Button>
+                  </Paper>
+                )}
+
+                {(selectedGroup || groups.length === 0) && (
+                  <>
+                <Grid container spacing={2} alignItems="center" sx={{ mb: 3 }}>
+                  <Grid item xs={12} md={isAdmin ? 4 : 12}>
+                    <TextField
+                      fullWidth
+                      label="Buscar materia"
+                      placeholder="Escribe una materia"
+                      value={subjectSearch}
+                      onChange={(event) => setSubjectSearch(event.target.value)}
+                    />
+                  </Grid>
+
+                  {isAdmin && (
+                    <>
+                      <Grid item xs={12} md={5}>
+                        <TextField
+                          fullWidth
+                          label={subjectForm.id ? 'Editar materia' : 'Nueva materia'}
+                          placeholder="Ejemplo: Matematica"
+                          value={subjectForm.name}
+                          onChange={(event) => setSubjectForm((current) => ({ ...current, name: event.target.value }))}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <Stack direction="row" spacing={1}>
+                          <Button
+                            fullWidth
+                            variant="contained"
+                            startIcon={subjectForm.id ? <Save /> : <Add />}
+                            onClick={handleSaveSubject}
+                            disabled={savingSubject || !subjectForm.name.trim()}
+                          >
+                            {subjectForm.id ? 'Actualizar' : 'Agregar'}
+                          </Button>
+                          {subjectForm.id && (
+                            <Button variant="outlined" color="inherit" startIcon={<Clear />} onClick={() => setSubjectForm(emptySubjectForm)} disabled={savingSubject}>
+                              Cancelar
+                            </Button>
+                          )}
+                        </Stack>
+                      </Grid>
+                    </>
+                  )}
+                </Grid>
+
+                {filteredSubjects.length === 0 ? (
+                  <Paper sx={{ p: 5, textAlign: 'center', borderRadius: '24px' }}>
+                    <Typography variant="h6" fontWeight={800} sx={{ mb: 1 }}>
+                      {subjects.length === 0 ? 'No hay materias aun' : 'No hay resultados para ese filtro'}
+                    </Typography>
+                    <Typography color="text.secondary">
+                      {subjects.length === 0
+                        ? isAdmin
+                          ? 'Usa el panel superior para crear la primera materia de este grado.'
+                          : 'Las materias para este grado se anadiran pronto.'
+                        : 'Prueba con otra busqueda o limpia el filtro actual.'}
+                    </Typography>
+                  </Paper>
+                ) : (
+                  <Grid container spacing={3}>
+                    {filteredSubjects.map((subject, index) => {
+                      const color = subjectColors[index % subjectColors.length];
+                      return (
+                        <Grid item xs={12} sm={6} md={4} key={subject.id}>
+                          <Card
+                            onClick={() => {
+                              if (!selectedGroup) {
+                                navigate(`/subjects/${subject.id}`);
+                                return;
+                              }
+
+                              const params = new URLSearchParams({
+                                group_id: String(selectedGroup.id),
+                                group_name: selectedGroup.name,
+                              });
+
+                              navigate(`/subjects/${subject.id}?${params.toString()}`);
+                            }}
                             sx={{
-                              bgcolor: `${color}22`,
-                              color: color,
-                              width: 56,
-                              height: 56,
-                              fontSize: '1.8rem',
-                              border: `2px solid ${color}33`,
+                              cursor: 'pointer',
+                              border: `3px solid ${color}22`,
+                              borderRadius: '24px',
+                              height: '100%',
+                              transition: 'transform 0.25s ease, border-color 0.25s ease',
+                              '&:hover': {
+                                border: `3px solid ${color}66`,
+                                transform: 'translateY(-6px)',
+                              },
                             }}
                           >
-                            {icon}
-                          </Avatar>
-                          <Box sx={{ flexGrow: 1 }}>
-                            <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.2 }}>
-                              {subject.name}
-                            </Typography>
-                            {subject.description && (
-                              <Typography variant="caption" color="text.secondary">
-                                {subject.description}
-                              </Typography>
-                            )}
-                          </Box>
-                        </Box>
+                            <CardContent sx={{ p: 3 }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5, mb: 2 }}>
+                                <Avatar
+                                  sx={{
+                                    bgcolor: `${color}18`,
+                                    color,
+                                    width: 58,
+                                    height: 58,
+                                    border: `2px solid ${color}2f`,
+                                    fontWeight: 900,
+                                  }}
+                                >
+                                  {subject.name?.charAt(0)?.toUpperCase() || 'M'}
+                                </Avatar>
 
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1,
-                            p: 1.5,
-                            background: `${color}11`,
-                            borderRadius: '10px',
-                            mt: 1,
-                          }}
-                        >
-                          <Typography variant="body2" fontWeight={600} sx={{ color, flexGrow: 1 }}>
-                            Ver meses del año
-                          </Typography>
-                          <ArrowForward sx={{ color, fontSize: '1rem' }} />
-                        </Box>
-                      </CardContent>
-                    </Card>
+                                {isAdmin && (
+                                  <Stack direction="row" spacing={1}>
+                                    <Button
+                                      size="small"
+                                      startIcon={<Edit />}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        setSubjectForm({ id: subject.id, name: subject.name });
+                                        setActiveTab(1);
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                      }}
+                                    >
+                                      Editar
+                                    </Button>
+                                    <Button
+                                      size="small"
+                                      color="error"
+                                      startIcon={<Delete />}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        handleDeleteSubject(subject);
+                                      }}
+                                    >
+                                      Eliminar
+                                    </Button>
+                                  </Stack>
+                                )}
+                              </Box>
+
+                              <Typography variant="h6" fontWeight={800} sx={{ lineHeight: 1.2, mb: 0.8 }}>
+                                {subject.name}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary" sx={{ minHeight: 42 }}>
+                                {selectedGroup
+                                  ? `Revisa los meses, semanas y actividades de ${subject.name} para ${selectedGroup.name}.`
+                                  : 'Revisa los meses, semanas y actividades disponibles para esta materia.'}
+                              </Typography>
+
+                              <Box
+                                sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 1,
+                                  p: 1.5,
+                                  background: `${color}11`,
+                                  borderRadius: '12px',
+                                  mt: 2,
+                                }}
+                              >
+                                <Typography variant="body2" fontWeight={700} sx={{ color, flexGrow: 1 }}>
+                                  Ver meses del ano
+                                </Typography>
+                                  <ArrowForward sx={{ color, fontSize: '1rem' }} />
+                                </Box>
+                              </CardContent>
+                          </Card>
+                        </Grid>
+                      );
+                    })}
                   </Grid>
-                );
-              })}
-            </Grid>
-          </>
-        )}
+                )}
+                  </>
+                )}
+              </>
+            )}
+          </Box>
+        </Paper>
       </Container>
 
       <Footer />

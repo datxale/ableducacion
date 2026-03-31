@@ -9,6 +9,7 @@ import LoadingSpinner from './components/common/LoadingSpinner';
 
 // Pages
 import LandingPage from './pages/Landing/LandingPage';
+import NewsDetailPage from './pages/Landing/NewsDetailPage';
 import LoginPage from './pages/Auth/LoginPage';
 import RegisterPage from './pages/Auth/RegisterPage';
 import DashboardPage from './pages/Dashboard/DashboardPage';
@@ -20,13 +21,16 @@ import WeekPage from './pages/Activities/WeekPage';
 import PlanningPage from './pages/Planning/PlanningPage';
 import LiveClassesPage from './pages/LiveClasses/LiveClassesPage';
 import ProgressPage from './pages/Progress/ProgressPage';
+import ReportsPage from './pages/Reports/ReportsPage';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import ManageUsers from './pages/Admin/ManageUsers';
 import ManageActivities from './pages/Admin/ManageActivities';
 import ManageClasses from './pages/Admin/ManageClasses';
-import ManageLandingPage from './pages/Admin/ManageLandingPage';
 import ManageNews from './pages/Admin/ManageNews';
 import ManageTestimonials from './pages/Admin/ManageTestimonials';
+import ManagePlanning from './pages/Admin/ManagePlanning';
+import ManageAcademics from './pages/Admin/ManageAcademics';
+import ChatPage from './pages/Chat/ChatPage';
 
 const AppContent = () => {
   const { loading, isAuthenticated } = useAuth();
@@ -52,6 +56,7 @@ const AppContent = () => {
             element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage />}
           />
           <Route path="/inicio" element={<LandingPage />} />
+          <Route path="/news/:newsId" element={<NewsDetailPage />} />
           <Route
             path="/login"
             element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />}
@@ -134,6 +139,22 @@ const AppContent = () => {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/chat"
+            element={
+              <ProtectedRoute>
+                <ChatPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'docente']}>
+                <ReportsPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Admin routes */}
           <Route
@@ -161,9 +182,17 @@ const AppContent = () => {
             }
           />
           <Route
+            path="/admin/academics"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'docente']}>
+                <ManageAcademics />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/admin/activities"
             element={
-              <ProtectedRoute adminOnly>
+              <ProtectedRoute allowedRoles={['admin', 'docente']}>
                 <ManageActivities />
               </ProtectedRoute>
             }
@@ -171,16 +200,32 @@ const AppContent = () => {
           <Route
             path="/admin/classes"
             element={
-              <ProtectedRoute adminOnly>
+              <ProtectedRoute allowedRoles={['admin', 'docente']}>
                 <ManageClasses />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/admin/landing-page"
+            path="/teaching/activities"
             element={
-              <ProtectedRoute adminOnly>
-                <ManageLandingPage />
+              <ProtectedRoute allowedRoles={['admin', 'docente']}>
+                <ManageActivities />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teaching/classes"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'docente']}>
+                <ManageClasses />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/planning/manage"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'docente']}>
+                <ManagePlanning />
               </ProtectedRoute>
             }
           />

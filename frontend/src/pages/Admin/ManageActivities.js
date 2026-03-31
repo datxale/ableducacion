@@ -1,180 +1,323 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Box,
+  Breadcrumbs,
+  Button,
+  Chip,
   Container,
-  Typography,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  Grid,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  Link,
+  List,
+  ListItem,
+  ListItemText,
+  MenuItem,
   Paper,
+  Select,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Button,
-  IconButton,
-  Chip,
-  Avatar,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Alert,
-  Breadcrumbs,
-  Link,
-  InputAdornment,
-  CircularProgress,
-  Tooltip,
-  Grid,
+  Typography,
 } from '@mui/material';
 import {
-  Home,
   Add,
-  Edit,
-  Delete,
-  Search,
-  MenuBook,
+  AssignmentTurnedIn,
+  CloudUpload,
   Close,
+  Delete,
+  Edit,
+  Grade,
+  Home,
   Save,
-  PictureAsPdf,
-  PlayCircle,
+  Search,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import axiosInstance from '../../api/axios';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Footer from '../../components/Layout/Footer';
+import { uploadFile } from '../../utils/uploads';
 
-const MONTHS = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-];
+const emptyForm = {
+  title: '',
+  description: '',
+  instructions: '',
+  activity_type: 'ficha',
+  learning_format: 'material',
+  subject_id: '',
+  month_id: '',
+  week_number: '',
+  file_url: '',
+  video_url: '',
+  max_score: '',
+  due_at: '',
+};
+
+const learningFormatLabel = {
+  material: 'Material',
+  tarea: 'Tarea',
+  examen: 'Examen',
+};
+
+const toDatetimeLocal = (value) => (value ? new Date(value).toISOString().slice(0, 16) : '');
 
 const ManageActivities = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, isAdmin, isDocente } = useAuth();
+
   const [activities, setActivities] = useState([]);
   const [subjects, setSubjects] = useState([]);
-  const [grades, setGrades] = useState([]);
+  const [months, setMonths] = useState([]);
+  const [weeks, setWeeks] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
+  const [selectedActivity, setSelectedActivity] = useState(null);
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [gradeForm, setGradeForm] = useState({ score: '', feedback: '' });
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [selectedActivity, setSelectedActivity] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    title: '',
-    description: '',
-    activity_type: 'ficha',
-    subject: '',
-    month: '',
-    week: '',
-    file_url: '',
-    video_url: '',
-    url: '',
-  });
+  const [submissionsDialogOpen, setSubmissionsDialogOpen] = useState(false);
+  const [gradeDialogOpen, setGradeDialogOpen] = useState(false);
 
-  const fetchData = async () => {
+  const sectionPath = location.pathname.startsWith('/admin') && isAdmin ? '/admin' : '/dashboard';
+  const sectionLabel = location.pathname.startsWith('/admin') && isAdmin ? 'Admin' : 'Docencia';
+
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [activitiesRes, subjectsRes, gradesRes] = await Promise.all([
-        axiosInstance.get('/activities/'),
+      const params = isDocente && user?.id ? { created_by: user.id } : undefined;
+      const [activitiesRes, subjectsRes, monthsRes, weeksRes] = await Promise.all([
+        axiosInstance.get('/activities/', { params }),
         axiosInstance.get('/subjects/'),
-        axiosInstance.get('/grades/'),
+        axiosInstance.get('/months/'),
+        axiosInstance.get('/weeks/'),
       ]);
       setActivities(activitiesRes.data?.results || activitiesRes.data || []);
       setSubjects(subjectsRes.data?.results || subjectsRes.data || []);
-      setGrades(gradesRes.data?.results || gradesRes.data || []);
+      setMonths(monthsRes.data?.results || monthsRes.data || []);
+      setWeeks(weeksRes.data?.results || weeksRes.data || []);
     } catch (err) {
       setError('Error al cargar actividades.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [isDocente, user?.id]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
-  const openCreateDialog = () => {
+  useEffect(() => {
+    const prefill = location.state?.prefill;
+    if (!prefill) return;
+
     setSelectedActivity(null);
     setForm({
-      title: '',
-      description: '',
-      activity_type: 'ficha',
-      subject: '',
-      month: '',
-      week: '',
-      file_url: '',
-      video_url: '',
-      url: '',
+      ...emptyForm,
+      subject_id: prefill.subject_id || '',
+      month_id: prefill.month_id || '',
+      week_number: prefill.week_number || '',
+      learning_format: prefill.learning_format || 'material',
+      activity_type: prefill.activity_type || 'ficha',
+      title: prefill.title || '',
     });
+    setDialogOpen(true);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate]);
+
+  const subjectsById = useMemo(() => Object.fromEntries(subjects.map((item) => [item.id, item])), [subjects]);
+  const monthsById = useMemo(() => Object.fromEntries(months.map((item) => [item.id, item])), [months]);
+  const weeksById = useMemo(() => Object.fromEntries(weeks.map((item) => [item.id, item])), [weeks]);
+
+  const filteredActivities = useMemo(
+    () =>
+      activities.filter((activity) => {
+        const week = weeksById[activity.week_id];
+        const subject = week ? subjectsById[week.subject_id] : null;
+        return [activity.title, activity.description, activity.learning_format, subject?.name]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .includes(search.toLowerCase());
+      }),
+    [activities, search, subjectsById, weeksById]
+  );
+
+  const resolveWeekId = async () => {
+    const existing = weeks.find(
+      (item) =>
+        item.subject_id === Number(form.subject_id) &&
+        item.month_id === Number(form.month_id) &&
+        item.number === Number(form.week_number)
+    );
+    if (existing) return existing.id;
+    const response = await axiosInstance.post('/weeks/', {
+      subject_id: Number(form.subject_id),
+      month_id: Number(form.month_id),
+      number: Number(form.week_number),
+    });
+    setWeeks((current) => [...current, response.data]);
+    return response.data.id;
+  };
+
+  const openCreate = () => {
+    setSelectedActivity(null);
+    setForm(emptyForm);
     setDialogOpen(true);
   };
 
-  const openEditDialog = (activity) => {
+  const openEdit = (activity) => {
+    const week = weeksById[activity.week_id];
     setSelectedActivity(activity);
     setForm({
       title: activity.title || '',
       description: activity.description || '',
+      instructions: activity.instructions || '',
       activity_type: activity.activity_type || 'ficha',
-      subject: activity.subject || '',
-      month: activity.month || '',
-      week: activity.week || '',
+      learning_format: activity.learning_format || 'material',
+      subject_id: week?.subject_id || '',
+      month_id: week?.month_id || '',
+      week_number: week?.number || '',
       file_url: activity.file_url || '',
       video_url: activity.video_url || '',
-      url: activity.url || '',
+      max_score: activity.max_score ?? '',
+      due_at: toDatetimeLocal(activity.due_at),
     });
     setDialogOpen(true);
   };
 
+  const handleUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const uploaded = await uploadFile(file, 'activities');
+      setForm((current) => ({ ...current, file_url: uploaded.url }));
+    } catch (err) {
+      setError(err.response?.data?.detail || 'No se pudo subir el archivo.');
+    } finally {
+      setUploading(false);
+      event.target.value = '';
+    }
+  };
+
   const handleSave = async () => {
-    if (!form.title || !form.subject) {
-      setError('El título y la materia son obligatorios.');
+    if (!form.title.trim() || !form.subject_id || !form.month_id || !form.week_number) {
+      setError('Titulo, materia, mes y semana son obligatorios.');
       return;
     }
+    if (form.activity_type === 'ficha' && !form.file_url.trim()) {
+      setError('La ficha requiere archivo.');
+      return;
+    }
+    if (form.activity_type === 'video' && !form.video_url.trim()) {
+      setError('El video requiere URL.');
+      return;
+    }
+    if (form.learning_format !== 'material' && !form.instructions.trim() && !form.description.trim()) {
+      setError('La tarea o examen debe tener indicaciones.');
+      return;
+    }
+
     setSaving(true);
     setError('');
     try {
-      const data = { ...form };
-      // Remove empty fields
-      Object.keys(data).forEach((k) => data[k] === '' && delete data[k]);
+      const weekId = await resolveWeekId();
+      const payload = {
+        title: form.title.trim(),
+        description: form.description.trim() || null,
+        instructions: form.instructions.trim() || null,
+        activity_type: form.activity_type,
+        learning_format: form.learning_format,
+        week_id: weekId,
+        file_url: form.activity_type === 'ficha' ? form.file_url.trim() : null,
+        video_url: form.activity_type === 'video' ? form.video_url.trim() : null,
+        max_score: form.learning_format === 'material' || form.max_score === '' ? null : Number(form.max_score),
+        due_at: form.learning_format === 'material' || !form.due_at ? null : new Date(form.due_at).toISOString(),
+      };
 
       if (selectedActivity) {
-        await axiosInstance.patch(`/activities/${selectedActivity.id}/`, data);
+        await axiosInstance.put(`/activities/${selectedActivity.id}`, payload);
         setSuccess('Actividad actualizada.');
       } else {
-        await axiosInstance.post('/activities/', data);
+        await axiosInstance.post('/activities/', payload);
         setSuccess('Actividad creada.');
       }
       setDialogOpen(false);
+      setForm(emptyForm);
       fetchData();
     } catch (err) {
-      const errData = err.response?.data;
-      let msg = 'Error al guardar actividad.';
-      if (errData) {
-        const firstKey = Object.keys(errData)[0];
-        msg = Array.isArray(errData[firstKey]) ? errData[firstKey][0] : String(errData[firstKey]);
-      }
-      setError(msg);
+      setError(err.response?.data?.detail || 'Error al guardar actividad.');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async () => {
+    if (!selectedActivity) return;
     setSaving(true);
     try {
-      await axiosInstance.delete(`/activities/${selectedActivity.id}/`);
+      await axiosInstance.delete(`/activities/${selectedActivity.id}`);
       setSuccess('Actividad eliminada.');
       setDeleteDialogOpen(false);
       fetchData();
-    } catch {
-      setError('Error al eliminar actividad.');
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Error al eliminar actividad.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openSubmissions = async (activity) => {
+    setSelectedActivity(activity);
+    setSubmissionsDialogOpen(true);
+    try {
+      const response = await axiosInstance.get('/activity-submissions/', { params: { activity_id: activity.id } });
+      setSubmissions(response.data || []);
+    } catch (err) {
+      setError('No se pudieron cargar las entregas.');
+    }
+  };
+
+  const openGrade = (submission) => {
+    setSelectedSubmission(submission);
+    setGradeForm({ score: submission.score ?? '', feedback: submission.feedback || '' });
+    setGradeDialogOpen(true);
+  };
+
+  const saveGrade = async () => {
+    if (!selectedSubmission) return;
+    setSaving(true);
+    try {
+      await axiosInstance.put(`/activity-submissions/${selectedSubmission.id}/grade`, {
+        score: gradeForm.score === '' ? null : Number(gradeForm.score),
+        feedback: gradeForm.feedback.trim() || null,
+      });
+      setGradeDialogOpen(false);
+      openSubmissions(selectedActivity);
+      fetchData();
+      setSuccess('Entrega revisada.');
+    } catch (err) {
+      setError(err.response?.data?.detail || 'No se pudo guardar la revision.');
     } finally {
       setSaving(false);
     }
@@ -182,342 +325,265 @@ const ManageActivities = () => {
 
   if (loading) return <LoadingSpinner message="Cargando actividades..." />;
 
-  const filteredActivities = activities.filter(
-    (a) =>
-      a.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.subject_name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   return (
     <Box sx={{ background: '#f5f7fa', minHeight: '100vh' }}>
-      <Box
-        sx={{
-          background: 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)',
-          py: 5,
-          overflow: 'hidden',
-        }}
-      >
+      <Box sx={{ background: 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)', py: 5 }}>
         <Container maxWidth="lg">
-          <Breadcrumbs sx={{ mb: 2 }} separator="›">
-            <Link
-              component="button"
-              onClick={() => navigate('/dashboard')}
-              sx={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '0.9rem', '&:hover': { color: '#fff' } }}
-            >
+          <Breadcrumbs sx={{ mb: 2 }} separator=">">
+            <Link component="button" onClick={() => navigate('/dashboard')} sx={{ color: 'rgba(255,255,255,0.85)', textDecoration: 'none' }}>
               <Home sx={{ fontSize: '1rem', mr: 0.3, verticalAlign: 'middle' }} /> Dashboard
             </Link>
-            <Link
-              component="button"
-              onClick={() => navigate('/admin')}
-              sx={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '0.9rem', '&:hover': { color: '#fff' } }}
-            >
-              Admin
+            <Link component="button" onClick={() => navigate(sectionPath)} sx={{ color: 'rgba(255,255,255,0.85)', textDecoration: 'none' }}>
+              {sectionLabel}
             </Link>
-            <Typography sx={{ color: '#fff', fontWeight: 600, fontSize: '0.9rem' }}>
-              Actividades
-            </Typography>
+            <Typography sx={{ color: '#fff', fontWeight: 700 }}>Actividades</Typography>
           </Breadcrumbs>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Box sx={{ background: 'rgba(255,255,255,0.25)', borderRadius: '16px', p: 1.5, display: 'flex' }}>
-                <MenuBook sx={{ color: '#fff', fontSize: '2.5rem' }} />
-              </Box>
-              <Box>
-                <Typography variant="h4" fontWeight={800} sx={{ color: '#fff' }}>
-                  Gestión de Actividades
-                </Typography>
-                <Typography sx={{ color: 'rgba(255,255,255,0.9)' }}>
-                  {activities.length} actividad{activities.length !== 1 ? 'es' : ''} registrada{activities.length !== 1 ? 's' : ''}
-                </Typography>
-              </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Box>
+              <Typography variant="h4" fontWeight={800} sx={{ color: '#fff' }}>
+                Material, tareas y examenes
+              </Typography>
+              <Typography sx={{ color: 'rgba(255,255,255,0.92)' }}>
+                {activities.length} elementos publicados
+              </Typography>
             </Box>
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={openCreateDialog}
-              sx={{ background: '#ff9800', '&:hover': { background: '#f57c00' } }}
-            >
-              Nueva Actividad
+            <Button variant="contained" startIcon={<Add />} onClick={openCreate} sx={{ background: '#ff9800', '&:hover': { background: '#f57c00' } }}>
+              Nueva actividad
             </Button>
           </Box>
         </Container>
       </Box>
 
       <Container maxWidth="lg" sx={{ py: 4 }}>
-        {error && <Alert severity="error" sx={{ mb: 2, borderRadius: '12px' }} onClose={() => setError('')}>{error}</Alert>}
-        {success && <Alert severity="success" sx={{ mb: 2, borderRadius: '12px' }} onClose={() => setSuccess('')}>{success}</Alert>}
+        {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
+        {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>{success}</Alert>}
 
-        <Paper sx={{ p: 2.5, borderRadius: '20px', boxShadow: '0 4px 20px rgba(0,0,0,0.07)', mb: 2 }}>
+        <Paper sx={{ p: 2, mb: 2 }}>
           <TextField
             fullWidth
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
             placeholder="Buscar actividades..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search color="action" />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+            InputProps={{ startAdornment: <InputAdornment position="start"><Search /></InputAdornment> }}
           />
         </Paper>
 
-        <Paper sx={{ borderRadius: '20px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.07)' }}>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow sx={{ background: '#f5f7fa' }}>
-                  <TableCell sx={{ fontWeight: 700 }}>Actividad</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Tipo</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Materia</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Mes / Semana</TableCell>
-                  <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Acciones</TableCell>
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 700 }}>Titulo</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Formato</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Materia</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Semana</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Entregas</TableCell>
+                <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Acciones</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredActivities.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} sx={{ textAlign: 'center', py: 4 }}>
+                    No hay actividades registradas.
+                  </TableCell>
                 </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredActivities.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} sx={{ textAlign: 'center', py: 5 }}>
-                      <Typography sx={{ fontSize: '2.5rem', mb: 1 }}>📭</Typography>
-                      <Typography color="text.secondary">No hay actividades registradas</Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredActivities.map((activity) => (
-                    <TableRow key={activity.id} hover sx={{ '&:last-child td': { border: 0 } }}>
+              ) : (
+                filteredActivities.map((activity) => {
+                  const week = weeksById[activity.week_id];
+                  const subject = week ? subjectsById[week.subject_id] : null;
+                  const month = week ? monthsById[week.month_id] : null;
+                  const isEvaluation = activity.learning_format !== 'material';
+                  return (
+                    <TableRow key={activity.id}>
                       <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                          <Avatar
-                            sx={{
-                              bgcolor:
-                                activity.activity_type === 'video' ? '#fce4ec' : '#e3f2fd',
-                              width: 36,
-                              height: 36,
-                            }}
-                          >
-                            {activity.activity_type === 'video' ? (
-                              <PlayCircle sx={{ color: '#e91e63', fontSize: '1.2rem' }} />
-                            ) : (
-                              <PictureAsPdf sx={{ color: '#1976d2', fontSize: '1.2rem' }} />
-                            )}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight={600}>
-                              {activity.title}
-                            </Typography>
-                            {activity.description && (
-                              <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 200, display: 'block' }}>
-                                {activity.description}
-                              </Typography>
-                            )}
-                          </Box>
-                        </Box>
+                        <Typography fontWeight={700}>{activity.title}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {activity.activity_type === 'video' ? 'Video' : 'Ficha'}
+                        </Typography>
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          label={activity.activity_type === 'video' ? '🎬 Video' : '📄 Ficha'}
-                          size="small"
-                          sx={{
-                            bgcolor: activity.activity_type === 'video' ? '#fce4ec' : '#e3f2fd',
-                            color: activity.activity_type === 'video' ? '#e91e63' : '#1976d2',
-                            fontWeight: 700,
-                            fontSize: '0.7rem',
-                          }}
-                        />
+                        <Chip size="small" label={learningFormatLabel[activity.learning_format] || 'Material'} />
+                        {activity.max_score ? <Chip size="small" label={`Nota ${activity.max_score}`} sx={{ ml: 0.5 }} /> : null}
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">{activity.subject_name || `Materia ${activity.subject}`}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        {activity.month && (
-                          <Typography variant="body2">
-                            {MONTHS[activity.month - 1] || `Mes ${activity.month}`}
-                            {activity.week ? ` - Sem. ${activity.week}` : ''}
-                          </Typography>
-                        )}
-                      </TableCell>
+                      <TableCell>{subject?.name || 'Sin materia'}</TableCell>
+                      <TableCell>{month?.name || 'Sin mes'}{week ? ` · Semana ${week.number}` : ''}</TableCell>
+                      <TableCell>{isEvaluation ? `${activity.submission_count || 0} entregas` : 'No aplica'}</TableCell>
                       <TableCell sx={{ textAlign: 'center' }}>
-                        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-                          <Tooltip title="Editar">
-                            <IconButton
-                              size="small"
-                              onClick={() => openEditDialog(activity)}
-                              sx={{ color: '#9c27b0', bgcolor: '#f3e5f5', '&:hover': { bgcolor: '#e1bee7' } }}
-                            >
-                              <Edit fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Eliminar">
-                            <IconButton
-                              size="small"
-                              onClick={() => { setSelectedActivity(activity); setDeleteDialogOpen(true); }}
-                              sx={{ color: '#e91e63', bgcolor: '#fce4ec', '&:hover': { bgcolor: '#f8bbd9' } }}
-                            >
-                              <Delete fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </Box>
+                        {isEvaluation && (
+                          <IconButton size="small" onClick={() => openSubmissions(activity)} color="primary">
+                            <AssignmentTurnedIn fontSize="small" />
+                          </IconButton>
+                        )}
+                        <IconButton size="small" onClick={() => openEdit(activity)} color="secondary">
+                          <Edit fontSize="small" />
+                        </IconButton>
+                        <IconButton size="small" onClick={() => { setSelectedActivity(activity); setDeleteDialogOpen(true); }} color="error">
+                          <Delete fontSize="small" />
+                        </IconButton>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Paper>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </Container>
 
-      {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: '20px' } }}>
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6" fontWeight={700}>
-            {selectedActivity ? '✏️ Editar Actividad' : '➕ Nueva Actividad'}
-          </Typography>
-          <IconButton onClick={() => setDialogOpen(false)} size="small"><Close /></IconButton>
+          <Typography fontWeight={700}>{selectedActivity ? 'Editar actividad' : 'Nueva actividad'}</Typography>
+          <IconButton onClick={() => setDialogOpen(false)}><Close /></IconButton>
         </DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Título *"
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                required
-              />
+            <Grid item xs={12} sm={8}>
+              <TextField fullWidth label="Titulo" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} />
             </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Descripción"
-                multiline
-                rows={2}
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={4}>
               <FormControl fullWidth>
-                <InputLabel>Tipo de actividad *</InputLabel>
-                <Select
-                  value={form.activity_type}
-                  onChange={(e) => setForm({ ...form, activity_type: e.target.value })}
-                  label="Tipo de actividad *"
-                >
-                  <MenuItem value="ficha">📄 Ficha PDF</MenuItem>
-                  <MenuItem value="video">🎬 Video</MenuItem>
-                  <MenuItem value="otro">📌 Otro</MenuItem>
+                <InputLabel>Formato</InputLabel>
+                <Select value={form.learning_format} label="Formato" onChange={(event) => setForm({ ...form, learning_format: event.target.value })}>
+                  <MenuItem value="material">Material</MenuItem>
+                  <MenuItem value="tarea">Tarea</MenuItem>
+                  <MenuItem value="examen">Examen</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12}>
+              <TextField fullWidth multiline rows={2} label="Descripcion" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField fullWidth multiline rows={3} label="Instrucciones" value={form.instructions} onChange={(event) => setForm({ ...form, instructions: event.target.value })} />
+            </Grid>
+            <Grid item xs={12} sm={3}>
               <FormControl fullWidth>
-                <InputLabel>Materia *</InputLabel>
-                <Select
-                  value={form.subject}
-                  onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                  label="Materia *"
-                >
-                  {subjects.map((s) => (
-                    <MenuItem key={s.id} value={s.id}>
-                      {s.name}
-                    </MenuItem>
-                  ))}
+                <InputLabel>Tipo</InputLabel>
+                <Select value={form.activity_type} label="Tipo" onChange={(event) => setForm({ ...form, activity_type: event.target.value, file_url: event.target.value === 'ficha' ? form.file_url : '', video_url: event.target.value === 'video' ? form.video_url : '' })}>
+                  <MenuItem value="ficha">Ficha</MenuItem>
+                  <MenuItem value="video">Video</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <FormControl fullWidth>
+                <InputLabel>Materia</InputLabel>
+                <Select value={form.subject_id} label="Materia" onChange={(event) => setForm({ ...form, subject_id: event.target.value })}>
+                  {subjects.map((subject) => <MenuItem key={subject.id} value={subject.id}>{subject.name}</MenuItem>)}
                 </Select>
               </FormControl>
             </Grid>
             <Grid item xs={6} sm={3}>
               <FormControl fullWidth>
                 <InputLabel>Mes</InputLabel>
-                <Select
-                  value={form.month}
-                  onChange={(e) => setForm({ ...form, month: e.target.value })}
-                  label="Mes"
-                >
-                  <MenuItem value="">Sin mes</MenuItem>
-                  {MONTHS.map((month, idx) => (
-                    <MenuItem key={idx + 1} value={idx + 1}>{month}</MenuItem>
-                  ))}
+                <Select value={form.month_id} label="Mes" onChange={(event) => setForm({ ...form, month_id: event.target.value })}>
+                  {months.map((month) => <MenuItem key={month.id} value={month.id}>{month.name}</MenuItem>)}
                 </Select>
               </FormControl>
             </Grid>
             <Grid item xs={6} sm={3}>
-              <FormControl fullWidth>
-                <InputLabel>Semana</InputLabel>
-                <Select
-                  value={form.week}
-                  onChange={(e) => setForm({ ...form, week: e.target.value })}
-                  label="Semana"
-                >
-                  <MenuItem value="">Sin semana</MenuItem>
-                  {[1, 2, 3, 4].map((w) => (
-                    <MenuItem key={w} value={w}>Semana {w}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="URL de archivo PDF / recurso"
-                value={form.file_url || form.url}
-                onChange={(e) => setForm({ ...form, file_url: e.target.value, url: e.target.value })}
-                placeholder="https://..."
-                helperText="URL directa al archivo PDF o recurso"
+                type="number"
+                label="Semana"
+                value={form.week_number}
+                onChange={(event) => setForm({ ...form, week_number: event.target.value })}
+                inputProps={{ min: 1, step: 1 }}
               />
             </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="URL de video (YouTube, etc.)"
-                value={form.video_url}
-                onChange={(e) => setForm({ ...form, video_url: e.target.value })}
-                placeholder="https://youtube.com/watch?v=..."
-                helperText="URL del video educativo"
-              />
-            </Grid>
+            {form.learning_format !== 'material' && (
+              <>
+                <Grid item xs={12} sm={6}>
+                  <TextField fullWidth type="number" label="Nota maxima" value={form.max_score} onChange={(event) => setForm({ ...form, max_score: event.target.value })} />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField fullWidth type="datetime-local" label="Fecha limite" InputLabelProps={{ shrink: true }} value={form.due_at} onChange={(event) => setForm({ ...form, due_at: event.target.value })} />
+                </Grid>
+              </>
+            )}
+            {form.activity_type === 'ficha' ? (
+              <>
+                <Grid item xs={12}>
+                  <TextField fullWidth label="Archivo" value={form.file_url} onChange={(event) => setForm({ ...form, file_url: event.target.value })} />
+                </Grid>
+                <Grid item xs={12}>
+                  <Button component="label" variant="outlined" startIcon={<CloudUpload />} disabled={uploading}>
+                    {uploading ? 'Subiendo...' : 'Subir archivo'}
+                    <input type="file" hidden onChange={handleUpload} />
+                  </Button>
+                </Grid>
+              </>
+            ) : (
+              <Grid item xs={12}>
+                <TextField fullWidth label="URL del video" value={form.video_url} onChange={(event) => setForm({ ...form, video_url: event.target.value })} />
+              </Grid>
+            )}
           </Grid>
         </DialogContent>
-        <DialogActions sx={{ p: 2.5, gap: 1 }}>
-          <Button variant="outlined" onClick={() => setDialogOpen(false)} sx={{ boxShadow: 'none', '&:hover': { boxShadow: 'none', transform: 'none' } }}>
-            Cancelar
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleSave}
-            disabled={saving}
-            startIcon={saving ? <CircularProgress size={16} /> : <Save />}
-            sx={{ background: '#9c27b0', '&:hover': { background: '#7b1fa2' } }}
-          >
-            {saving ? 'Guardando...' : 'Guardar'}
+        <DialogActions>
+          <Button onClick={() => setDialogOpen(false)}>Cancelar</Button>
+          <Button variant="contained" onClick={handleSave} disabled={saving} startIcon={<Save />}>
+            Guardar
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Delete Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: '20px' } }}>
-        <DialogTitle>
-          <Typography variant="h6" fontWeight={700}>⚠️ Confirmar eliminación</Typography>
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Eliminar actividad</DialogTitle>
+        <DialogContent>Eliminar <strong>{selectedActivity?.title}</strong>?</DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
+          <Button color="error" variant="contained" onClick={handleDelete} disabled={saving}>Eliminar</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={submissionsDialogOpen} onClose={() => setSubmissionsDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography fontWeight={700}>Entregas de {selectedActivity?.title}</Typography>
+          <IconButton onClick={() => setSubmissionsDialogOpen(false)}><Close /></IconButton>
         </DialogTitle>
         <DialogContent>
-          <Typography>
-            ¿Eliminar la actividad "<strong>{selectedActivity?.title}</strong>"?
-          </Typography>
+          {submissions.length === 0 ? (
+            <Alert severity="info">Aun no hay entregas.</Alert>
+          ) : (
+            <List>
+              {submissions.map((submission) => (
+                <ListItem
+                  key={submission.id}
+                  divider
+                  secondaryAction={<Button startIcon={<Grade />} onClick={() => openGrade(submission)}>Revisar</Button>}
+                >
+                  <ListItemText
+                    primary={submission.student_name || `Alumno ${submission.student_id}`}
+                    secondary={
+                      <>
+                        <Typography variant="body2" color="text.secondary">{submission.response_text || 'Sin texto'}</Typography>
+                        {submission.attachment_url ? <Link href={submission.attachment_url} target="_blank" rel="noreferrer">Ver archivo</Link> : null}
+                      </>
+                    }
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
         </DialogContent>
-        <DialogActions sx={{ p: 2.5, gap: 1 }}>
-          <Button variant="outlined" onClick={() => setDeleteDialogOpen(false)} sx={{ boxShadow: 'none', '&:hover': { boxShadow: 'none', transform: 'none' } }}>
-            Cancelar
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleDelete}
-            disabled={saving}
-          >
-            {saving ? 'Eliminando...' : 'Eliminar'}
-          </Button>
+      </Dialog>
+
+      <Dialog open={gradeDialogOpen} onClose={() => setGradeDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Revisar entrega</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+            <Grid item xs={12}>
+              <TextField fullWidth type="number" label="Nota" value={gradeForm.score} onChange={(event) => setGradeForm({ ...gradeForm, score: event.target.value })} />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField fullWidth multiline rows={4} label="Retroalimentacion" value={gradeForm.feedback} onChange={(event) => setGradeForm({ ...gradeForm, feedback: event.target.value })} />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setGradeDialogOpen(false)}>Cancelar</Button>
+          <Button variant="contained" onClick={saveGrade} disabled={saving}>Guardar revision</Button>
         </DialogActions>
       </Dialog>
 

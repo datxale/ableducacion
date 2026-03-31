@@ -22,16 +22,41 @@ class User(Base):
     phone = Column(String(20), nullable=True)
     whatsapp = Column(String(20), nullable=True)
     grade_id = Column(Integer, ForeignKey("grades.id"), nullable=True)
+    group_id = Column(Integer, ForeignKey("academic_groups.id"), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
     # Relationships
     grade = relationship("Grade", back_populates="students")
+    group = relationship("AcademicGroup", back_populates="students", foreign_keys=[group_id])
+    groups_led = relationship("AcademicGroup", back_populates="teacher", foreign_keys="AcademicGroup.teacher_id")
     activities_created = relationship("Activity", back_populates="creator")
     live_classes_taught = relationship("LiveClass", back_populates="teacher")
     enrollments = relationship("Enrollment", back_populates="student", foreign_keys="Enrollment.student_id")
     progress_records = relationship("Progress", back_populates="student")
+    activity_submissions = relationship(
+        "ActivitySubmission",
+        foreign_keys="ActivitySubmission.student_id",
+        back_populates="student",
+    )
+    graded_activity_submissions = relationship(
+        "ActivitySubmission",
+        foreign_keys="ActivitySubmission.graded_by",
+        back_populates="grader",
+    )
+    attendance_records = relationship("LiveClassAttendance", back_populates="student")
+    notifications = relationship("Notification", back_populates="user")
+    messages_sent = relationship(
+        "ChatMessage",
+        foreign_keys="ChatMessage.sender_id",
+        back_populates="sender",
+    )
+    messages_received = relationship(
+        "ChatMessage",
+        foreign_keys="ChatMessage.recipient_id",
+        back_populates="recipient",
+    )
 
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, role={self.role})>"

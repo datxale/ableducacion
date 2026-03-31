@@ -23,6 +23,12 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import {
+  getUserDisplayName,
+  getUserInitial,
+  getUserRoleColor,
+  getUserRoleLabel,
+} from '../../utils/users';
 
 const DRAWER_WIDTH = 260;
 
@@ -43,8 +49,9 @@ const Sidebar = ({ open, onClose, variant = 'temporary' }) => {
     navItems.push({ label: 'Administracion', path: '/admin', icon: <AdminPanelSettings />, color: '#f44336' });
   }
 
-  const roleColor = isAdmin ? '#9c27b0' : user?.role === 'docente' ? '#1976d2' : '#4caf50';
-  const roleLabel = isAdmin ? 'Administrador' : user?.role === 'docente' ? 'Docente' : 'Estudiante';
+  const roleColor = getUserRoleColor(user);
+  const roleLabel = isAdmin ? 'Administrador' : getUserRoleLabel(user);
+  const displayName = getUserDisplayName(user);
 
   const drawerContent = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -83,13 +90,11 @@ const Sidebar = ({ open, onClose, variant = 'temporary' }) => {
               height: 44,
             }}
           >
-            {user?.first_name?.[0] || user?.username?.[0] || 'U'}
+            {getUserInitial(user)}
           </Avatar>
           <Box>
             <Typography variant="subtitle2" fontWeight={700} sx={{ lineHeight: 1.2 }}>
-              {user?.first_name
-                ? `${user.first_name} ${user.last_name || ''}`
-                : user?.username}
+              {displayName}
             </Typography>
             <Chip
               label={roleLabel}

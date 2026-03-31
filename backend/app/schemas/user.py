@@ -11,6 +11,7 @@ class UserBase(BaseModel):
     phone: Optional[str] = None
     whatsapp: Optional[str] = None
     grade_id: Optional[int] = None
+    group_id: Optional[int] = None
 
 
 class UserCreate(UserBase):
@@ -26,9 +27,12 @@ class UserCreate(UserBase):
 
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    role: Optional[UserRole] = None
     phone: Optional[str] = None
     whatsapp: Optional[str] = None
     grade_id: Optional[int] = None
+    group_id: Optional[int] = None
     is_active: Optional[bool] = None
     password: Optional[str] = None
 
@@ -46,7 +50,10 @@ class UserPublic(BaseModel):
     email: EmailStr
     full_name: str
     role: UserRole
+    phone: Optional[str] = None
+    whatsapp: Optional[str] = None
     grade_id: Optional[int] = None
+    group_id: Optional[int] = None
     is_active: bool
     created_at: datetime
 

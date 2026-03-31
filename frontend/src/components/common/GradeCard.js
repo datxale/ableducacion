@@ -95,7 +95,7 @@ const GradeCard = ({ grade, index, onClick }) => {
             fontSize: '0.85rem',
           }}
         >
-          {grade?.description || 'Haz clic para ver materias'}
+          {grade?.description || 'Haz clic para ver secciones'}
         </Typography>
       </CardContent>
     </Card>

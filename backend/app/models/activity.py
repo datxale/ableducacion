@@ -17,6 +17,10 @@ class Activity(Base):
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     activity_type = Column(Enum(ActivityType), nullable=False)
+    learning_format = Column(String(20), nullable=False, default="material", server_default="material")
+    instructions = Column(Text, nullable=True)
+    max_score = Column(Integer, nullable=True)
+    due_at = Column(DateTime(timezone=True), nullable=True)
     file_url = Column(String(500), nullable=True)
     video_url = Column(String(500), nullable=True)
     week_id = Column(Integer, ForeignKey("weeks.id"), nullable=False)
@@ -28,6 +32,7 @@ class Activity(Base):
     week = relationship("Week", back_populates="activities")
     creator = relationship("User", back_populates="activities_created")
     progress_records = relationship("Progress", back_populates="activity")
+    submissions = relationship("ActivitySubmission", back_populates="activity")
 
     def __repr__(self):
         return f"<Activity(id={self.id}, title={self.title}, type={self.activity_type})>"

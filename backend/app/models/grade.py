@@ -16,6 +16,7 @@ class Grade(Base):
     plannings = relationship("Planning", back_populates="grade")
     live_classes = relationship("LiveClass", back_populates="grade")
     enrollments = relationship("Enrollment", back_populates="grade")
+    groups = relationship("AcademicGroup", back_populates="grade")
 
     def __repr__(self):
         return f"<Grade(id={self.id}, name={self.name})>"

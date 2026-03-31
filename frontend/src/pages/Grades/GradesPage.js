@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Box,
-  Container,
-  Typography,
-  Grid,
   Alert,
+  Box,
   Breadcrumbs,
-  Link,
   Chip,
+  Container,
+  Grid,
+  Link,
+  Typography,
 } from '@mui/material';
 import { Home, School } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import axiosInstance from '../../api/axios';
 import GradeCard from '../../components/common/GradeCard';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -18,6 +19,8 @@ import Footer from '../../components/Layout/Footer';
 
 const GradesPage = () => {
   const navigate = useNavigate();
+  const { user, isDocente, isEstudiante } = useAuth();
+
   const [grades, setGrades] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -25,23 +28,44 @@ const GradesPage = () => {
   useEffect(() => {
     const fetchGrades = async () => {
       try {
-        const res = await axiosInstance.get('/grades/');
-        setGrades(res.data?.results || res.data || []);
+        const [gradesRes, groupsRes, liveClassesRes] = await Promise.all([
+          axiosInstance.get('/grades/'),
+          isDocente && user?.id
+            ? axiosInstance.get('/groups/', { params: { teacher_id: user.id } }).catch(() => ({ data: [] }))
+            : Promise.resolve({ data: [] }),
+          isDocente && user?.id
+            ? axiosInstance.get('/live-classes/', { params: { teacher_id: user.id } }).catch(() => ({ data: [] }))
+            : Promise.resolve({ data: [] }),
+        ]);
+
+        const allGrades = gradesRes.data?.results || gradesRes.data || [];
+        const docenteGradeIds = new Set([
+          ...(groupsRes.data || []).map((item) => item.grade_id),
+          ...(liveClassesRes.data || []).map((item) => item.grade_id),
+        ]);
+        const visibleGrades =
+          isEstudiante && user?.grade_id
+            ? allGrades.filter((grade) => grade.id === user.grade_id)
+            : isDocente
+            ? allGrades.filter((grade) => docenteGradeIds.has(grade.id))
+            : allGrades;
+
+        setGrades(visibleGrades);
       } catch (err) {
-        setError('Error al cargar los grados. Intenta de nuevo.');
+        setError('Error al cargar los grados.');
         console.error(err);
       } finally {
         setLoading(false);
       }
     };
+
     fetchGrades();
-  }, []);
+  }, [isDocente, isEstudiante, user?.grade_id, user?.id]);
 
   if (loading) return <LoadingSpinner message="Cargando grados..." />;
 
   return (
     <Box sx={{ background: '#f5f7fa', minHeight: '100vh' }}>
-      {/* Hero header */}
       <Box
         sx={{
           background: 'linear-gradient(135deg, #1565c0 0%, #42a5f5 100%)',
@@ -61,8 +85,9 @@ const GradesPage = () => {
             background: 'rgba(255,255,255,0.08)',
           }}
         />
+
         <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
-          <Breadcrumbs sx={{ mb: 2 }} separator="›">
+          <Breadcrumbs sx={{ mb: 2 }} separator=">">
             <Link
               component="button"
               onClick={() => navigate('/dashboard')}
@@ -96,19 +121,23 @@ const GradesPage = () => {
             </Box>
             <Box>
               <Typography variant="h3" fontWeight={800} sx={{ color: '#fff', lineHeight: 1 }}>
-                Grados Escolares
+                {isEstudiante ? 'Mi grado' : 'Grados escolares'}
               </Typography>
               <Typography sx={{ color: 'rgba(255,255,255,0.85)', mt: 0.5 }}>
-                Selecciona tu grado para acceder al contenido
+                {isEstudiante
+                  ? 'Accede al contenido asignado a tu grado'
+                  : isDocente
+                  ? 'Explora los grados y secciones que tienes asignados'
+                  : 'Explora grados y materias disponibles'}
               </Typography>
             </Box>
           </Box>
 
           <Box sx={{ mt: 3, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            {['1° Grado', '2° Grado', '3° Grado', '4° Grado', '5° Grado', '6° Grado'].map((g) => (
+            {grades.map((grade) => (
               <Chip
-                key={g}
-                label={g}
+                key={grade.id}
+                label={grade.name}
                 size="small"
                 sx={{
                   background: 'rgba(255,255,255,0.2)',
@@ -131,19 +160,18 @@ const GradesPage = () => {
 
         {grades.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 8 }}>
-            <Typography sx={{ fontSize: '5rem', mb: 2 }}>📚</Typography>
             <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>
               No hay grados disponibles
             </Typography>
             <Typography color="text.secondary">
-              Los grados serán añadidos pronto por el administrador.
+              Esta cuenta no tiene un grado asignado todavia.
             </Typography>
           </Box>
         ) : (
           <>
             <Box sx={{ mb: 4 }}>
               <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
-                ¡Elige tu grado! 🎯
+                {isEstudiante ? 'Tu ruta activa' : isDocente ? 'Tus grados asignados' : 'Selecciona un grado'}
               </Typography>
               <Typography color="text.secondary">
                 {grades.length} grado{grades.length !== 1 ? 's' : ''} disponible{grades.length !== 1 ? 's' : ''}

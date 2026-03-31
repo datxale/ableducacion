@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
 import {
-  Box,
-  Typography,
-  TextField,
-  Button,
-  IconButton,
   Alert,
+  Box,
+  Button,
   CircularProgress,
-  Fab,
+  IconButton,
+  TextField,
+  Typography,
 } from '@mui/material';
 import {
   Visibility,
   VisibilityOff,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+
+import WhatsAppFab from '../../components/common/WhatsAppFab';
+import { getWhatsAppUrl } from '../../config/contact';
 import { useAuth } from '../../context/AuthContext';
 
 const LoginPage = () => {
@@ -36,17 +38,19 @@ const LoginPage = () => {
       setLocalError('Por favor completa todos los campos.');
       return;
     }
+
     setLoading(true);
     const result = await login(form.email, form.password);
     setLoading(false);
+
     if (result.success) {
       navigate('/dashboard');
-    } else {
-      setLocalError(result.error);
+      return;
     }
+
+    setLocalError(result.error);
   };
 
-  // Floating decorative elements
   const FloatingIcon = ({ children, top, left, right, size = 40, delay = 0 }) => (
     <Box
       sx={{
@@ -74,7 +78,6 @@ const LoginPage = () => {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      {/* LEFT SIDE - Dark panel with branding */}
       <Box
         sx={{
           flex: 1,
@@ -88,7 +91,6 @@ const LoginPage = () => {
           p: 4,
         }}
       >
-        {/* Dashed decorative path */}
         <Box
           sx={{
             position: 'absolute',
@@ -110,7 +112,6 @@ const LoginPage = () => {
           }}
         />
 
-        {/* Floating decorative icons */}
         <FloatingIcon top="8%" left="10%" size={50} delay={0}>📚</FloatingIcon>
         <FloatingIcon top="15%" right="15%" size={45} delay={0.5}>🎓</FloatingIcon>
         <FloatingIcon top="40%" left="5%" size={35} delay={1}>✏️</FloatingIcon>
@@ -119,7 +120,6 @@ const LoginPage = () => {
         <FloatingIcon top="5%" left="50%" size={35} delay={0.8}>🔬</FloatingIcon>
         <FloatingIcon top="75%" right="25%" size={38} delay={1.2}>🎨</FloatingIcon>
 
-        {/* Dots decoration */}
         {[...Array(8)].map((_, i) => (
           <Box
             key={i}
@@ -135,7 +135,6 @@ const LoginPage = () => {
           />
         ))}
 
-        {/* Logo / Brand */}
         <Box sx={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
           <Box
             sx={{
@@ -178,7 +177,7 @@ const LoginPage = () => {
               mb: 1,
             }}
           >
-            Si eres docente
+            Acceso institucional
           </Typography>
           <Typography
             variant="h5"
@@ -188,15 +187,15 @@ const LoginPage = () => {
               mb: 3,
             }}
           >
-            inscríbete aquí
+            solicita tus credenciales
           </Typography>
 
           <Button
             variant="contained"
             size="large"
-            onClick={() => navigate('/register')}
+            onClick={() => window.open(getWhatsAppUrl('Hola, necesito acceso a ABL Educacion.'), '_blank', 'noopener,noreferrer')}
             sx={{
-              background: 'linear-gradient(135deg, #7c4dff, #b388ff)',
+              background: 'linear-gradient(135deg, #25d366, #1fa755)',
               color: '#fff',
               fontWeight: 700,
               fontSize: '1.1rem',
@@ -204,16 +203,16 @@ const LoginPage = () => {
               py: 1.5,
               borderRadius: '16px',
               textTransform: 'none',
-              boxShadow: '0 8px 24px rgba(124,77,255,0.4)',
+              boxShadow: '0 8px 24px rgba(37,211,102,0.35)',
               '&:hover': {
-                background: 'linear-gradient(135deg, #651fff, #7c4dff)',
-                boxShadow: '0 12px 32px rgba(124,77,255,0.5)',
+                background: 'linear-gradient(135deg, #1fa755, #1a8f48)',
+                boxShadow: '0 12px 32px rgba(37,211,102,0.45)',
                 transform: 'translateY(-2px)',
               },
               transition: 'all 0.3s ease',
             }}
           >
-            Registrarme
+            Solicitar acceso
           </Button>
 
           <Box sx={{ mt: 4 }}>
@@ -227,7 +226,7 @@ const LoginPage = () => {
                 mb: 1,
               }}
             >
-              ¡Recuerda!
+              Recuerda
             </Typography>
             <Typography
               sx={{
@@ -237,13 +236,12 @@ const LoginPage = () => {
                 lineHeight: 1.6,
               }}
             >
-              Solo los docentes y estudiantes registrados en ABL Educacion tienen acceso al Portal
+              El acceso al portal es administrado por la institucion para docentes, estudiantes y personal autorizado.
             </Typography>
           </Box>
         </Box>
       </Box>
 
-      {/* RIGHT SIDE - Login form */}
       <Box
         sx={{
           flex: 1,
@@ -257,7 +255,6 @@ const LoginPage = () => {
         }}
       >
         <Box sx={{ maxWidth: 400, width: '100%' }}>
-          {/* Mobile logo */}
           <Box sx={{ display: { xs: 'block', md: 'none' }, textAlign: 'center', mb: 4 }}>
             <Typography variant="h4" fontWeight={900} color="primary">
               ABL<Box component="span" sx={{ color: '#ff9800' }}>EDUCACION</Box>
@@ -273,7 +270,7 @@ const LoginPage = () => {
               color: '#1a2d5a',
             }}
           >
-            ¡Bienvenido/a al
+            Bienvenido al
           </Typography>
           <Typography
             variant="h4"
@@ -284,7 +281,7 @@ const LoginPage = () => {
               color: '#1a2d5a',
             }}
           >
-            Portal Educativo!
+            portal educativo
           </Typography>
 
           {localError && (
@@ -300,7 +297,7 @@ const LoginPage = () => {
           <Box component="form" onSubmit={handleSubmit} noValidate>
             <TextField
               fullWidth
-              label="Ingresa tu correo electrónico"
+              label="Ingresa tu correo electronico"
               name="email"
               type="email"
               value={form.email}
@@ -321,7 +318,7 @@ const LoginPage = () => {
 
             <TextField
               fullWidth
-              label="Ingresa tu contraseña"
+              label="Ingresa tu contrasena"
               name="password"
               type={showPassword ? 'text' : 'password'}
               value={form.password}
@@ -369,11 +366,7 @@ const LoginPage = () => {
                 transition: 'all 0.3s ease',
               }}
             >
-              {loading ? (
-                <CircularProgress size={28} color="inherit" />
-              ) : (
-                'Ingresar'
-              )}
+              {loading ? <CircularProgress size={28} color="inherit" /> : 'Ingresar'}
             </Button>
           </Box>
 
@@ -388,7 +381,7 @@ const LoginPage = () => {
                 '&:hover': { textDecoration: 'underline' },
               }}
             >
-              ¿Olvidaste tu contraseña?
+              Olvidaste tu contrasena?
             </Typography>
             <br />
             <Typography
@@ -401,33 +394,12 @@ const LoginPage = () => {
                 '&:hover': { textDecoration: 'underline' },
               }}
             >
-              Haz click aquí
+              Haz click aqui
             </Typography>
           </Box>
         </Box>
-
-        {/* WhatsApp floating button */}
-        <Fab
-          color="success"
-          aria-label="WhatsApp"
-          sx={{
-            position: 'fixed',
-            bottom: 24,
-            right: 24,
-            width: 64,
-            height: 64,
-            boxShadow: '0 6px 20px rgba(37,211,102,0.5)',
-            '&:hover': {
-              transform: 'scale(1.1)',
-              boxShadow: '0 8px 28px rgba(37,211,102,0.6)',
-            },
-            transition: 'all 0.3s ease',
-          }}
-          onClick={() => window.open('https://wa.me/51947279926', '_blank')}
-        >
-          <Box sx={{ fontSize: '2rem', lineHeight: 1 }}>💬</Box>
-        </Fab>
       </Box>
+      <WhatsAppFab message="Hola, necesito ayuda para ingresar a ABL Educacion." />
     </Box>
   );
 };

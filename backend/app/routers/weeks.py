@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
 from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
 from app.database import get_db
-from app.models.week import Week
+from app.middleware.auth import get_current_user, require_admin_or_docente
 from app.models.month import Month
 from app.models.subject import Subject
-from app.middleware.auth import get_current_user, require_admin_or_docente
+from app.models.week import Week
 
 router = APIRouter(prefix="/api/weeks", tags=["Semanas"])
 
@@ -31,6 +33,14 @@ class WeekResponse(WeekBase):
     id: int
 
     model_config = {"from_attributes": True}
+
+
+def _validate_week_number(number: int) -> None:
+    if number <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El numero de semana debe ser mayor que cero",
+        )
 
 
 @router.get("/", response_model=List[WeekResponse])
@@ -75,27 +85,31 @@ def create_week(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Mes no encontrado",
         )
+
     subject = db.query(Subject).filter(Subject.id == week_data.subject_id).first()
     if not subject:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Asignatura no encontrada",
         )
-    if week_data.number not in range(1, 5):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El número de semana debe estar entre 1 y 4",
+
+    _validate_week_number(week_data.number)
+
+    existing = (
+        db.query(Week)
+        .filter(
+            Week.month_id == week_data.month_id,
+            Week.subject_id == week_data.subject_id,
+            Week.number == week_data.number,
         )
-    existing = db.query(Week).filter(
-        Week.month_id == week_data.month_id,
-        Week.subject_id == week_data.subject_id,
-        Week.number == week_data.number,
-    ).first()
+        .first()
+    )
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Ya existe esa semana para ese mes y asignatura",
         )
+
     week = Week(**week_data.model_dump())
     db.add(week)
     db.commit()
@@ -116,6 +130,7 @@ def update_week(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Semana no encontrada",
         )
+
     if week_data.month_id is not None:
         month = db.query(Month).filter(Month.id == week_data.month_id).first()
         if not month:
@@ -123,6 +138,7 @@ def update_week(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Mes no encontrado",
             )
+
     if week_data.subject_id is not None:
         subject = db.query(Subject).filter(Subject.id == week_data.subject_id).first()
         if not subject:
@@ -130,8 +146,32 @@ def update_week(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Asignatura no encontrada",
             )
+
+    next_number = week_data.number if week_data.number is not None else week.number
+    next_month_id = week_data.month_id if week_data.month_id is not None else week.month_id
+    next_subject_id = week_data.subject_id if week_data.subject_id is not None else week.subject_id
+
+    _validate_week_number(next_number)
+
+    existing = (
+        db.query(Week)
+        .filter(
+            Week.id != week.id,
+            Week.month_id == next_month_id,
+            Week.subject_id == next_subject_id,
+            Week.number == next_number,
+        )
+        .first()
+    )
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ya existe esa semana para ese mes y asignatura",
+        )
+
     for field, value in week_data.model_dump(exclude_unset=True).items():
         setattr(week, field, value)
+
     db.commit()
     db.refresh(week)
     return week
@@ -149,5 +189,12 @@ def delete_week(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Semana no encontrada",
         )
+
+    if week.activities:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se puede eliminar la semana porque todavia tiene contenido asociado",
+        )
+
     db.delete(week)
     db.commit()

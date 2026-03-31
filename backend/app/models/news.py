@@ -9,9 +9,11 @@ class NewsPost(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255), nullable=False)
+    news_type = Column(String(30), nullable=False, default="noticia", server_default="noticia")
     summary = Column(Text, nullable=False)
     content = Column(Text, nullable=True)
     image_url = Column(String(500), nullable=True)
+    link_url = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     published_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

@@ -66,6 +66,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         phone=user_data.phone,
         whatsapp=user_data.whatsapp,
         grade_id=user_data.grade_id,
+        group_id=user_data.group_id,
         is_active=True,
     )
     db.add(new_user)

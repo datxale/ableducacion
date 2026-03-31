@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Container,
@@ -10,10 +10,9 @@ import {
   Breadcrumbs,
   Link,
   Chip,
-  Button,
 } from '@mui/material';
-import { Home, CalendarMonth, ArrowForward } from '@mui/icons-material';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Home, CalendarMonth } from '@mui/icons-material';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import axiosInstance from '../../api/axios';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Footer from '../../components/Layout/Footer';
@@ -29,10 +28,21 @@ const monthEmojis = ['❄️', '💝', '🌸', '🌷', '🌻', '☀️', '🌊',
 const SubjectPage = () => {
   const { subjectId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [subject, setSubject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const activeGroupId = searchParams.get('group_id');
+  const activeGroupName = searchParams.get('group_name');
+  const activeGroupLabel = activeGroupName || (activeGroupId ? `Seccion ${activeGroupId}` : '');
+  const groupQuery = useMemo(() => {
+    const params = new URLSearchParams();
+    if (activeGroupId) params.set('group_id', activeGroupId);
+    if (activeGroupName) params.set('group_name', activeGroupName);
+    const value = params.toString();
+    return value ? `?${value}` : '';
+  }, [activeGroupId, activeGroupName]);
 
   useEffect(() => {
     const fetchSubject = async () => {
@@ -95,10 +105,10 @@ const SubjectPage = () => {
             {subject?.grade && (
               <Link
                 component="button"
-                onClick={() => navigate(`/grades/${subject.grade}`)}
+                onClick={() => navigate(`/grades/${subject.grade.id}`)}
                 sx={{ color: 'rgba(255,255,255,0.75)', textDecoration: 'none', fontSize: '0.9rem', '&:hover': { color: '#fff' } }}
               >
-                {subject.grade_name || `Grado ${subject.grade}`}
+                {subject.grade.name || `Grado ${subject.grade.id}`}
               </Link>
             )}
             <Typography sx={{ color: '#fff', fontWeight: 600, fontSize: '0.9rem' }}>
@@ -124,6 +134,17 @@ const SubjectPage = () => {
               <Typography sx={{ color: 'rgba(255,255,255,0.9)', mt: 0.5 }}>
                 Selecciona el mes para ver las actividades
               </Typography>
+              {activeGroupLabel && (
+                <Chip
+                  label={`Seccion activa: ${activeGroupLabel}`}
+                  sx={{
+                    mt: 1.5,
+                    bgcolor: 'rgba(255,255,255,0.18)',
+                    color: '#fff',
+                    fontWeight: 700,
+                  }}
+                />
+              )}
             </Box>
           </Box>
         </Container>
@@ -141,7 +162,9 @@ const SubjectPage = () => {
             Meses del año escolar 📅
           </Typography>
           <Typography color="text.secondary">
-            Haz clic en un mes para ver las actividades por semana
+            {activeGroupLabel
+              ? `Estas revisando la materia dentro de la seccion ${activeGroupLabel}.`
+              : 'Haz clic en un mes para ver las actividades por semana'}
           </Typography>
         </Box>
 
@@ -154,7 +177,7 @@ const SubjectPage = () => {
             return (
               <Grid item xs={6} sm={4} md={3} key={month}>
                 <Card
-                  onClick={() => navigate(`/subjects/${subjectId}/month/${index + 1}`)}
+                  onClick={() => navigate(`/subjects/${subjectId}/month/${index + 1}${groupQuery}`)}
                   sx={{
                     cursor: 'pointer',
                     background: background,

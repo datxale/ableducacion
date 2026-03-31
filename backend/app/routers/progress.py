@@ -49,7 +49,12 @@ def get_student_progress(
         query = query.filter(Progress.activity_id == activity_id)
     if progress_status is not None:
         query = query.filter(Progress.status == progress_status)
-    return query.offset(skip).limit(limit).all()
+    return (
+        query.order_by(Progress.updated_at.desc(), Progress.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 @router.get("/grade/{grade_id}", response_model=GradeProgressSummary)
@@ -183,7 +188,14 @@ def create_progress(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Ya existe un registro de progreso para este estudiante y actividad",
         )
-    progress = Progress(**progress_data.model_dump())
+    progress_payload = progress_data.model_dump()
+    if (
+        progress_payload.get("status") == ProgressStatus.completed
+        and not progress_payload.get("completed_at")
+    ):
+        progress_payload["completed_at"] = datetime.now(timezone.utc)
+
+    progress = Progress(**progress_payload)
     db.add(progress)
     db.commit()
     db.refresh(progress)
@@ -218,6 +230,11 @@ def update_progress(
         and not progress.completed_at
     ):
         update_data["completed_at"] = datetime.now(timezone.utc)
+    elif (
+        "status" in update_data
+        and update_data["status"] != ProgressStatus.completed
+    ):
+        update_data["completed_at"] = None
     for field, value in update_data.items():
         setattr(progress, field, value)
     db.commit()
