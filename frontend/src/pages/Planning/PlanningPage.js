@@ -380,14 +380,14 @@ const PlanningPage = () => {
             >
               <CalendarMonth sx={{ color: '#fff', fontSize: '2.5rem' }} />
             </Box>
-            <Box>
-              <Typography variant="h3" fontWeight={800} sx={{ color: '#fff', lineHeight: 1 }}>
-                Planificacion
-              </Typography>
-              <Typography sx={{ color: 'rgba(255,255,255,0.9)', mt: 0.5 }}>
-                Planificadores por unidad, recursos pedagógicos y agenda de clases en vivo
-              </Typography>
-            </Box>
+              <Box>
+                <Typography variant="h3" fontWeight={800} sx={{ color: '#fff', lineHeight: 1 }}>
+                  Planificacion
+                </Typography>
+                <Typography sx={{ color: 'rgba(255,255,255,0.9)', mt: 0.5 }}>
+                  Planificadores por unidad publicados para cada grado y seccion
+                </Typography>
+              </Box>
           </Box>
 
           {(isDocente || isAdmin) && (
