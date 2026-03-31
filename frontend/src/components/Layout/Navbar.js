@@ -157,7 +157,14 @@ const Navbar = () => {
           boxShadow: 'none',
         }}
       >
-        <Toolbar sx={{ px: { xs: 2, md: 4 } }}>
+        <Toolbar
+          sx={{
+            width: '100%',
+            maxWidth: '1200px',
+            mx: 'auto',
+            px: { xs: 2, sm: 3, md: 4 },
+          }}
+        >
           <Box
             sx={{
               display: 'flex',
