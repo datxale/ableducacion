@@ -55,43 +55,70 @@ const DashboardPage = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const classParams = { limit: 3 };
+      setError('');
+      const classParams = { limit: 3 };
 
-        if (isEstudiante && user?.grade_id) {
-          classParams.grade_id = user.grade_id;
-        }
+      if (isEstudiante && user?.grade_id) {
+        classParams.grade_id = user.grade_id;
+      }
 
-        if (isDocente && user?.id) {
-          classParams.teacher_id = user.id;
-        }
+      if (isDocente && user?.id) {
+        classParams.teacher_id = user.id;
+      }
 
-        const requests = [
-          axiosInstance.get('/grades/'),
-          axiosInstance.get('/live-classes/', { params: classParams }),
-        ];
+      const requests = [
+        axiosInstance.get('/grades/'),
+        axiosInstance.get('/live-classes/', { params: classParams }),
+      ];
 
-        if (!isEstudiante) {
-          requests.push(axiosInstance.get('/reports/overview').catch(() => ({ data: null })));
-        }
+      if (!isEstudiante) {
+        requests.push(axiosInstance.get('/reports/overview'));
+      }
 
-        const [gradesRes, classesRes, reportRes] = await Promise.all(requests);
+      const [gradesRes, classesRes, reportRes] = await Promise.allSettled(requests);
 
-        const allGrades = gradesRes.data?.results || gradesRes.data || [];
+      if (gradesRes.status === 'fulfilled') {
+        const allGrades = gradesRes.value.data?.results || gradesRes.value.data || [];
         const visibleGrades =
           isEstudiante && user?.grade_id
             ? allGrades.filter((grade) => grade.id === user.grade_id)
             : allGrades;
-
         setGrades(visibleGrades);
-        setLiveClasses(classesRes.data?.results || classesRes.data || []);
-        setReportOverview(reportRes?.data || null);
-      } catch (err) {
-        setError('Error al cargar datos del dashboard.');
-        console.error(err);
-      } finally {
-        setLoading(false);
+      } else {
+        setGrades([]);
+        console.error(gradesRes.reason);
       }
+
+      if (classesRes.status === 'fulfilled') {
+        setLiveClasses(classesRes.value.data?.results || classesRes.value.data || []);
+      } else {
+        setLiveClasses([]);
+        console.error(classesRes.reason);
+      }
+
+      if (!isEstudiante) {
+        if (reportRes?.status === 'fulfilled') {
+          setReportOverview(reportRes.value.data || null);
+        } else {
+          setReportOverview(null);
+          if (reportRes?.reason) {
+            console.error(reportRes.reason);
+          }
+        }
+      } else {
+        setReportOverview(null);
+      }
+
+      if (gradesRes.status !== 'fulfilled') {
+        setError('Error al cargar datos principales del dashboard.');
+      } else if (
+        classesRes.status !== 'fulfilled'
+        || (!isEstudiante && reportRes?.status !== 'fulfilled')
+      ) {
+        setError('Algunos datos del dashboard no pudieron cargarse, pero el panel sigue disponible.');
+      }
+
+      setLoading(false);
     };
 
     fetchData();

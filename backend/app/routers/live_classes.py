@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
@@ -34,6 +35,7 @@ from app.services.live_class_recordings import (
 from app.services.notifications import notify_grade_students
 
 router = APIRouter(prefix="/api/live-classes", tags=["Clases en Vivo"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("/config/status")
@@ -137,6 +139,12 @@ def _auto_sync_live_classes(db: Session, live_classes: list[LiveClass]) -> None:
             db.refresh(live_class)
         except GoogleMeetIntegrationError:
             db.rollback()
+        except Exception:
+            db.rollback()
+            logger.exception(
+                "Fallo inesperado al sincronizar la grabacion de la clase %s durante el listado",
+                live_class.id,
+            )
 
 
 def _iter_stream(response):
