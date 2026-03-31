@@ -263,9 +263,9 @@ const LandingPage = () => {
             <Typography sx={{ color: '#2b7de9', fontWeight: 700 }}>{news.length > 0 ? `${news.length} noticias activas` : 'Sin noticias activas'}</Typography>
           </Box>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(3, minmax(280px, 1fr))', md: 'repeat(3, minmax(0, 1fr))' }, gap: 3, overflowX: { xs: 'auto', md: 'visible' }, pb: { xs: 1.5, md: 0 }, scrollSnapType: { xs: 'x proximity', md: 'none' }, '&::-webkit-scrollbar': { height: 8 }, '&::-webkit-scrollbar-thumb': { background: 'rgba(43,125,233,0.25)', borderRadius: 999 } }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }, gap: 3 }}>
             {visibleNews.map((item, index) => (
-              <Box key={`${item.id}-${index}-${currentNewsIndex}`} sx={{ background: '#fff', borderRadius: '24px', overflow: 'hidden', minWidth: 0, border: '1px solid rgba(16,24,40,0.08)', boxShadow: '0 18px 40px rgba(15,23,42,0.08)', display: 'flex', flexDirection: 'column', scrollSnapAlign: 'start' }}>
+              <Box key={`${item.id}-${index}-${currentNewsIndex}`} sx={{ background: '#fff', borderRadius: '24px', overflow: 'hidden', minWidth: 0, border: '1px solid rgba(16,24,40,0.08)', boxShadow: '0 18px 40px rgba(15,23,42,0.08)', display: 'flex', flexDirection: 'column' }}>
                 <Box sx={{ height: 190, background: item.image_url ? `linear-gradient(180deg, rgba(17,24,39,0.08), rgba(17,24,39,0.5)), url(${item.image_url})` : 'linear-gradient(135deg, #4ECDC4 0%, #2B7DE9 100%)', backgroundSize: 'cover', backgroundPosition: 'center', p: 2.5, display: 'flex', alignItems: 'flex-start' }}>
                   <Chip label={formatNewsDate(item.published_at)} sx={{ background: 'rgba(255,255,255,0.92)', color: '#1a1a2e', fontWeight: 700 }} />
                 </Box>
