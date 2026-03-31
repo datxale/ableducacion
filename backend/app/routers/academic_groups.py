@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.middleware.auth import get_current_user, require_admin, require_admin_or_docente
+from app.middleware.auth import get_current_user, require_admin
 from app.models.academic_group import AcademicGroup
 from app.models.grade import Grade
 from app.models.live_class import LiveClass
@@ -30,6 +30,13 @@ def _allowed_grade_ids_for_teacher(db: Session, teacher_id: int) -> Set[int]:
     return group_grade_ids | class_grade_ids
 
 
+def _allowed_group_ids_for_teacher(current_user: User) -> Set[int]:
+    allowed_group_ids: Set[int] = set()
+    if current_user.group_id is not None:
+        allowed_group_ids.add(current_user.group_id)
+    return allowed_group_ids
+
+
 def _ensure_docente_can_manage_grade(db: Session, current_user: User, grade_id: int) -> None:
     if current_user.role != UserRole.docente:
         return
@@ -44,8 +51,8 @@ def _ensure_docente_can_manage_grade(db: Session, current_user: User, grade_id: 
 def _ensure_docente_can_access_group(db: Session, current_user: User, group: AcademicGroup) -> None:
     if current_user.role != UserRole.docente:
         return
-    allowed_grade_ids = _allowed_grade_ids_for_teacher(db, current_user.id)
-    if group.teacher_id != current_user.id and group.grade_id not in allowed_grade_ids:
+    allowed_group_ids = _allowed_group_ids_for_teacher(current_user)
+    if group.teacher_id != current_user.id and group.id not in allowed_group_ids:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tiene permisos para acceder a esta seccion",
@@ -102,6 +109,7 @@ def list_groups(
         )
     elif current_user.role == UserRole.docente:
         allowed_grade_ids = _allowed_grade_ids_for_teacher(db, current_user.id)
+        allowed_group_ids = _allowed_group_ids_for_teacher(current_user)
         if teacher_id is not None and teacher_id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -112,9 +120,16 @@ def list_groups(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="No tiene permisos para consultar secciones de este grado",
             )
-        if not allowed_grade_ids:
+        if not allowed_group_ids and not allowed_grade_ids:
             return []
-        query = query.filter(AcademicGroup.grade_id.in_(allowed_grade_ids))
+        teacher_scoped_group_ids = {
+            item.id
+            for item in db.query(AcademicGroup).filter(AcademicGroup.teacher_id == current_user.id).all()
+        }
+        scoped_group_ids = teacher_scoped_group_ids | allowed_group_ids
+        if not scoped_group_ids:
+            return []
+        query = query.filter(AcademicGroup.id.in_(scoped_group_ids))
     if grade_id is not None:
         query = query.filter(AcademicGroup.grade_id == grade_id)
     if teacher_id is not None:
@@ -151,7 +166,7 @@ def get_group(
 def create_group(
     group_data: AcademicGroupCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_docente),
+    current_user: User = Depends(require_admin),
 ):
     _validate_grade(db, group_data.grade_id)
     _validate_teacher(db, group_data.teacher_id)
@@ -192,7 +207,7 @@ def update_group(
     group_id: int,
     group_data: AcademicGroupUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_docente),
+    current_user: User = Depends(require_admin),
 ):
     group = db.query(AcademicGroup).filter(AcademicGroup.id == group_id).first()
     if not group:
@@ -226,7 +241,7 @@ def update_group(
 def delete_group(
     group_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_docente),
+    current_user: User = Depends(require_admin),
 ):
     group = db.query(AcademicGroup).filter(AcademicGroup.id == group_id).first()
     if not group:

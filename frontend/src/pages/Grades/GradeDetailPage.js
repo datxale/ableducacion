@@ -78,7 +78,7 @@ const GradeDetailPage = () => {
   const { gradeId } = useParams();
   const navigate = useNavigate();
   const { user, isAdmin, isDocente } = useAuth();
-  const canManageGroups = isAdmin || isDocente;
+  const canManageGroups = isAdmin;
 
   const [grade, setGrade] = useState(null);
   const [subjects, setSubjects] = useState([]);
