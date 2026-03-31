@@ -55,20 +55,21 @@ def notify_grade_students(
     db: Session,
     *,
     grade_id: int,
+    group_id: Optional[int] = None,
     title: str,
     message: str,
     notification_type: NotificationType,
     link: Optional[str] = None,
 ) -> None:
-    students = (
-        db.query(User)
-        .filter(
-            User.role == UserRole.estudiante,
-            User.grade_id == grade_id,
-            User.is_active.is_(True),
-        )
-        .all()
+    query = db.query(User).filter(
+        User.role == UserRole.estudiante,
+        User.grade_id == grade_id,
+        User.is_active.is_(True),
     )
+    if group_id is not None:
+        query = query.filter(User.group_id == group_id)
+
+    students = query.all()
     create_notifications_for_users(
         db,
         user_ids=[student.id for student in students],

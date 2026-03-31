@@ -20,8 +20,10 @@ class Planning(Base):
     description = Column(Text, nullable=True)
     file_url = Column(String(500), nullable=True)
     source_file_url = Column(String(500), nullable=True)
+    presentation_video_url = Column(String(500), nullable=True)
     grade_id = Column(Integer, ForeignKey("grades.id"), nullable=False)
     month_id = Column(Integer, ForeignKey("months.id"), nullable=True)
+    group_id = Column(Integer, ForeignKey("academic_groups.id"), nullable=True)
     unit_number = Column(String(50), nullable=True)
     unit_title = Column(String(255), nullable=True)
     situation_context = Column(Text, nullable=True)
@@ -33,6 +35,7 @@ class Planning(Base):
     # Relationships
     grade = relationship("Grade", back_populates="plannings")
     month = relationship("Month", back_populates="plannings")
+    group = relationship("AcademicGroup")
 
     def __repr__(self):
         return f"<Planning(id={self.id}, title={self.title}, type={self.planning_type})>"

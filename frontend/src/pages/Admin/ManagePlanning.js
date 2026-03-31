@@ -47,21 +47,65 @@ import {
   createEmptyPlanningForm,
   createEmptyPlanningSession,
   createEmptyPlanningWeek,
+  detectPlanningMediaKind,
   getPlanningTypeMeta,
+  getYoutubeEmbedUrl,
   normalizePlanningWeeks,
 } from '../../utils/planning';
 import { uploadFile } from '../../utils/uploads';
 
 const GOOGLE_CALENDAR_URL = 'https://calendar.google.com/calendar/u/0/r/week';
 
+const PlanningVideoPreview = ({ url }) => {
+  if (!url) return null;
+
+  const mediaKind = detectPlanningMediaKind(url);
+  const youtubeUrl = mediaKind === 'youtube' ? getYoutubeEmbedUrl(url) : null;
+
+  return (
+    <Paper variant="outlined" sx={{ borderRadius: '18px', overflow: 'hidden', background: '#fff' }}>
+      {mediaKind === 'youtube' && youtubeUrl && (
+        <Box sx={{ position: 'relative', pt: '56.25%' }}>
+          <Box
+            component="iframe"
+            src={youtubeUrl}
+            title="Video de presentacion"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
+          />
+        </Box>
+      )}
+
+      {mediaKind === 'video' && (
+        <Box component="video" controls sx={{ width: '100%', maxHeight: 360, display: 'block', background: '#000' }}>
+          <source src={url} />
+        </Box>
+      )}
+
+      {mediaKind === 'link' && (
+        <Box sx={{ p: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            El enlace no es un video MP4/WebM directo ni un enlace de YouTube embebible. Se abrira como enlace externo.
+          </Typography>
+          <Button variant="outlined" startIcon={<Launch />} href={url} target="_blank" rel="noreferrer">
+            Abrir enlace
+          </Button>
+        </Box>
+      )}
+    </Paper>
+  );
+};
+
 const ManagePlanning = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAdmin } = useAuth();
+  const { user, isAdmin, isDocente } = useAuth();
 
   const [items, setItems] = useState([]);
   const [grades, setGrades] = useState([]);
   const [months, setMonths] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -79,14 +123,16 @@ const ManagePlanning = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [planningRes, gradesRes, monthsRes] = await Promise.all([
+      const [planningRes, gradesRes, monthsRes, groupsRes] = await Promise.all([
         axiosInstance.get('/planning/'),
         axiosInstance.get('/grades/'),
         axiosInstance.get('/months/'),
+        axiosInstance.get('/groups/'),
       ]);
       setItems(planningRes.data?.results || planningRes.data || []);
       setGrades(gradesRes.data?.results || gradesRes.data || []);
       setMonths(monthsRes.data?.results || monthsRes.data || []);
+      setGroups(groupsRes.data?.results || groupsRes.data || []);
     } catch (err) {
       setError('Error al cargar la planificacion.');
       console.error(err);
@@ -106,6 +152,20 @@ const ManagePlanning = () => {
   const monthsById = useMemo(
     () => Object.fromEntries(months.map((month) => [month.id, month])),
     [months],
+  );
+  const groupsById = useMemo(
+    () => Object.fromEntries(groups.map((group) => [group.id, group])),
+    [groups],
+  );
+  const availableGroups = useMemo(
+    () =>
+      groups.filter((group) => {
+        if (group.is_active === false) return false;
+        if (form.grade_id && Number(group.grade_id) !== Number(form.grade_id)) return false;
+        if (isDocente && !isAdmin && user?.id && group.teacher_id !== user.id) return false;
+        return true;
+      }),
+    [form.grade_id, groups, isAdmin, isDocente, user?.id],
   );
 
   const planners = useMemo(
@@ -133,8 +193,10 @@ const ManagePlanning = () => {
       description: item.description || '',
       file_url: item.file_url || '',
       source_file_url: item.source_file_url || '',
+      presentation_video_url: item.presentation_video_url || '',
       grade_id: item.grade_id || '',
       month_id: item.month_id || '',
+      group_id: item.group_id || '',
       unit_number: item.unit_number || '',
       unit_title: item.unit_title || '',
       situation_context: item.situation_context || '',
@@ -147,6 +209,22 @@ const ManagePlanning = () => {
   const handleBasicChange = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
+
+  useEffect(() => {
+    if (!form.group_id) return;
+    const selectedGroup = groupsById[Number(form.group_id)];
+    if (!selectedGroup) {
+      setForm((current) => ({ ...current, group_id: '' }));
+      return;
+    }
+    if (form.grade_id && Number(selectedGroup.grade_id) !== Number(form.grade_id)) {
+      setForm((current) => ({ ...current, group_id: '' }));
+      return;
+    }
+    if (isDocente && !isAdmin && user?.id && selectedGroup.teacher_id !== user.id) {
+      setForm((current) => ({ ...current, group_id: '' }));
+    }
+  }, [form.grade_id, form.group_id, groupsById, isAdmin, isDocente, user?.id]);
 
   const handleWeekChange = (weekIndex, field, value) => {
     setForm((current) => ({
@@ -311,8 +389,10 @@ const ManagePlanning = () => {
       description: form.description.trim() || null,
       file_url: form.file_url.trim() || null,
       source_file_url: form.source_file_url.trim() || null,
+      presentation_video_url: form.presentation_video_url.trim() || null,
       grade_id: Number(form.grade_id),
       month_id: form.month_id ? Number(form.month_id) : null,
+      group_id: form.group_id ? Number(form.group_id) : null,
       unit_number: form.planning_type === 'planificador' ? form.unit_number.trim() || null : null,
       unit_title: form.planning_type === 'planificador' ? form.unit_title.trim() || null : null,
       situation_context: form.planning_type === 'planificador' ? form.situation_context.trim() || null : null,
@@ -491,6 +571,7 @@ const ManagePlanning = () => {
                           <Chip label={typeMeta.label} sx={{ bgcolor: typeMeta.bg, color: typeMeta.color, fontWeight: 800 }} />
                           <Chip label={gradesById[item.grade_id]?.name || `Grado ${item.grade_id}`} size="small" />
                           {item.month_id && <Chip label={monthsById[item.month_id]?.name || `Mes ${item.month_id}`} size="small" />}
+                          {item.group_name && <Chip label={`Seccion ${item.group_name}`} size="small" />}
                         </Box>
                         <Box sx={{ display: 'flex', gap: 0.5 }}>
                           <IconButton size="small" onClick={() => openEditDialog(item)} sx={{ color: '#1565c0', bgcolor: '#e3f2fd' }}>
@@ -533,6 +614,7 @@ const ManagePlanning = () => {
                       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
                         <Chip label={`${item.structured_content?.length || 0} semana(s)`} size="small" sx={{ fontWeight: 700 }} />
                         <Chip label={`${totalSessions} sesiones`} size="small" sx={{ fontWeight: 700 }} />
+                        {item.presentation_video_url && <Chip label="Video de presentacion" size="small" sx={{ fontWeight: 700, bgcolor: '#e3f2fd', color: '#1565c0' }} />}
                       </Box>
 
                       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -544,6 +626,11 @@ const ManagePlanning = () => {
                         {item.file_url && (
                           <Button variant="outlined" startIcon={<MenuBook />} href={item.file_url} target="_blank" rel="noreferrer" sx={{ boxShadow: 'none', '&:hover': { boxShadow: 'none', transform: 'none' } }}>
                             Recurso extra
+                          </Button>
+                        )}
+                        {item.presentation_video_url && (
+                          <Button variant="outlined" startIcon={<VideoCall />} href={item.presentation_video_url} target="_blank" rel="noreferrer" sx={{ boxShadow: 'none', '&:hover': { boxShadow: 'none', transform: 'none' } }}>
+                            Ver video
                           </Button>
                         )}
                       </Box>
@@ -604,6 +691,7 @@ const ManagePlanning = () => {
                       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
                         <Chip label={gradesById[item.grade_id]?.name || `Grado ${item.grade_id}`} size="small" />
                         {item.month_id && <Chip label={monthsById[item.month_id]?.name || `Mes ${item.month_id}`} size="small" />}
+                        {item.group_name && <Chip label={`Seccion ${item.group_name}`} size="small" />}
                       </Box>
 
                       <Button fullWidth variant={item.file_url ? 'contained' : 'outlined'} href={item.file_url || undefined} target={item.file_url ? '_blank' : undefined} disabled={!item.file_url}>
@@ -642,6 +730,15 @@ const ManagePlanning = () => {
                 <InputLabel>Grado</InputLabel>
                 <Select value={form.grade_id} label="Grado" onChange={(event) => handleBasicChange('grade_id', event.target.value)}>
                   {grades.map((grade) => <MenuItem key={grade.id} value={grade.id}>{grade.name}</MenuItem>)}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth>
+                <InputLabel>Seccion</InputLabel>
+                <Select value={form.group_id} label="Seccion" onChange={(event) => handleBasicChange('group_id', event.target.value)} disabled={!form.grade_id}>
+                  <MenuItem value="">Todo el grado</MenuItem>
+                  {availableGroups.map((group) => <MenuItem key={group.id} value={group.id}>{group.name}</MenuItem>)}
                 </Select>
               </FormControl>
             </Grid>
@@ -700,6 +797,37 @@ const ManagePlanning = () => {
                 <Grid item xs={12}>
                   <TextField fullWidth label="URL de recurso adicional" placeholder="https://..." value={form.file_url} onChange={(event) => handleBasicChange('file_url', event.target.value)} />
                 </Grid>
+
+                <Grid item xs={12} md={8}>
+                  <TextField fullWidth label="URL del video de presentacion" placeholder="https://... o /api/uploads/..." value={form.presentation_video_url} onChange={(event) => handleBasicChange('presentation_video_url', event.target.value)} />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <Button
+                    component="label"
+                    fullWidth
+                    variant="outlined"
+                    startIcon={<CloudUpload />}
+                    disabled={uploadingTarget === 'presentation_video_url'}
+                    sx={{ height: '56px', boxShadow: 'none', '&:hover': { boxShadow: 'none', transform: 'none' } }}
+                  >
+                    {uploadingTarget === 'presentation_video_url' ? 'Subiendo video...' : 'Subir video'}
+                    <input type="file" accept=".mp4,.webm,.mov,.m4v,.ogg,video/*" hidden onChange={(event) => handleFileUpload(event, 'presentation_video_url')} />
+                  </Button>
+                </Grid>
+
+                {form.presentation_video_url && (
+                  <Grid item xs={12}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'center', mb: 1 }}>
+                      <Typography variant="subtitle2" fontWeight={800}>
+                        Vista previa del video de presentacion
+                      </Typography>
+                      <Button color="error" size="small" onClick={() => handleBasicChange('presentation_video_url', '')} sx={{ boxShadow: 'none', '&:hover': { boxShadow: 'none', transform: 'none' } }}>
+                        Quitar video
+                      </Button>
+                    </Box>
+                    <PlanningVideoPreview url={form.presentation_video_url} />
+                  </Grid>
+                )}
 
                 <Grid item xs={12}>
                   <Paper sx={{ p: 2, borderRadius: '18px', background: '#faf7f5', border: '1px solid #efebe9' }}>

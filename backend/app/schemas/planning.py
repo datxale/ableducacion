@@ -61,8 +61,10 @@ class PlanningBase(BaseModel):
     description: Optional[str] = None
     file_url: Optional[str] = None
     source_file_url: Optional[str] = None
+    presentation_video_url: Optional[str] = None
     grade_id: int
     month_id: Optional[int] = None
+    group_id: Optional[int] = None
     unit_number: Optional[str] = None
     unit_title: Optional[str] = None
     situation_context: Optional[str] = None
@@ -74,6 +76,7 @@ class PlanningBase(BaseModel):
         "description",
         "file_url",
         "source_file_url",
+        "presentation_video_url",
         "unit_number",
         "unit_title",
         "situation_context",
@@ -108,8 +111,10 @@ class PlanningUpdate(BaseModel):
     description: Optional[str] = None
     file_url: Optional[str] = None
     source_file_url: Optional[str] = None
+    presentation_video_url: Optional[str] = None
     grade_id: Optional[int] = None
     month_id: Optional[int] = None
+    group_id: Optional[int] = None
     unit_number: Optional[str] = None
     unit_title: Optional[str] = None
     situation_context: Optional[str] = None
@@ -121,6 +126,7 @@ class PlanningUpdate(BaseModel):
         "description",
         "file_url",
         "source_file_url",
+        "presentation_video_url",
         "unit_number",
         "unit_title",
         "situation_context",
@@ -139,6 +145,7 @@ class PlanningUpdate(BaseModel):
 
 class PlanningResponse(PlanningBase):
     id: int
+    group_name: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 

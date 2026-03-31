@@ -224,6 +224,22 @@ def apply_safe_schema_updates():
             text(
                 """
                 ALTER TABLE plannings
+                ADD COLUMN IF NOT EXISTS presentation_video_url VARCHAR(500)
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                ALTER TABLE plannings
+                ADD COLUMN IF NOT EXISTS group_id INTEGER
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                ALTER TABLE plannings
                 ADD COLUMN IF NOT EXISTS unit_number VARCHAR(50)
                 """
             )

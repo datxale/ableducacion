@@ -60,8 +60,10 @@ export const createEmptyPlanningForm = () => ({
   description: '',
   file_url: '',
   source_file_url: '',
+  presentation_video_url: '',
   grade_id: '',
   month_id: '',
+  group_id: '',
   unit_number: '',
   unit_title: '',
   situation_context: '',
@@ -91,4 +93,45 @@ export const getPlanningTypeMeta = (planningType) => {
     color: '#ef6c00',
     bg: '#fff3e0',
   };
+};
+
+export const getYoutubeEmbedUrl = (url) => {
+  if (!url) return null;
+
+  const patterns = [
+    /youtube\.com\/watch\?v=([^&]+)/,
+    /youtu\.be\/([^?]+)/,
+    /youtube\.com\/embed\/([^?]+)/,
+    /youtube\.com\/shorts\/([^?]+)/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) {
+      return `https://www.youtube.com/embed/${match[1]}`;
+    }
+  }
+
+  return null;
+};
+
+export const detectPlanningMediaKind = (url) => {
+  if (!url) return 'none';
+
+  if (getYoutubeEmbedUrl(url)) {
+    return 'youtube';
+  }
+
+  const lower = url.toLowerCase().split('?')[0];
+  if (
+    lower.endsWith('.mp4')
+    || lower.endsWith('.webm')
+    || lower.endsWith('.mov')
+    || lower.endsWith('.m4v')
+    || lower.endsWith('.ogg')
+  ) {
+    return 'video';
+  }
+
+  return 'link';
 };

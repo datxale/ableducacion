@@ -40,7 +40,11 @@ import { useAuth } from '../../context/AuthContext';
 import axiosInstance from '../../api/axios';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Footer from '../../components/Layout/Footer';
-import { getPlanningTypeMeta } from '../../utils/planning';
+import {
+  detectPlanningMediaKind,
+  getPlanningTypeMeta,
+  getYoutubeEmbedUrl,
+} from '../../utils/planning';
 
 const GOOGLE_CALENDAR_URL = 'https://calendar.google.com/calendar/u/0/r/week';
 const DEFAULT_CALENDAR_STATUS = {
@@ -77,6 +81,72 @@ const getRecordingStatus = (liveClass) => {
   }
 };
 
+const PlanningPresentationVideo = ({ url }) => {
+  if (!url) return null;
+
+  const mediaKind = detectPlanningMediaKind(url);
+  const youtubeUrl = mediaKind === 'youtube' ? getYoutubeEmbedUrl(url) : null;
+
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2,
+        borderRadius: '20px',
+        borderColor: '#dceefb',
+        background: 'linear-gradient(180deg, #f9fdff 0%, #ffffff 100%)',
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5, flexWrap: 'wrap', mb: 1.5 }}>
+        <Box>
+          <Typography variant="subtitle1" fontWeight={800} sx={{ color: '#0f4c81' }}>
+            Video de presentacion
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Introduccion visual de la unidad para estudiantes y docentes.
+          </Typography>
+        </Box>
+        <Button
+          variant="outlined"
+          startIcon={<PlayCircle />}
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          sx={{ borderColor: '#1976d2', color: '#1976d2' }}
+        >
+          Abrir video
+        </Button>
+      </Box>
+
+      {mediaKind === 'youtube' && youtubeUrl && (
+        <Box sx={{ position: 'relative', pt: '56.25%', borderRadius: '18px', overflow: 'hidden', background: '#000' }}>
+          <Box
+            component="iframe"
+            src={youtubeUrl}
+            title="Video de presentacion"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
+          />
+        </Box>
+      )}
+
+      {mediaKind === 'video' && (
+        <Box component="video" controls sx={{ width: '100%', borderRadius: '18px', overflow: 'hidden', background: '#000' }}>
+          <source src={url} />
+          Tu navegador no soporta reproduccion de video.
+        </Box>
+      )}
+
+      {mediaKind === 'link' && (
+        <Alert severity="info" sx={{ borderRadius: '14px' }}>
+          El video fue cargado como enlace externo. Usa el boton para abrirlo.
+        </Alert>
+      )}
+    </Paper>
+  );
+};
+
 const PlanningCard = ({ item, gradeName, monthName }) => (
   <Card sx={{ height: '100%', borderRadius: '20px' }}>
     <CardContent sx={{ p: 2.5 }}>
@@ -110,6 +180,7 @@ const PlanningCard = ({ item, gradeName, monthName }) => (
             />
             {gradeName && <Chip label={gradeName} size="small" />}
             {monthName && <Chip label={monthName} size="small" />}
+            {item.group_name && <Chip label={`Seccion ${item.group_name}`} size="small" />}
           </Box>
         </Box>
       </Box>
@@ -174,6 +245,7 @@ const PlannerUnitCard = ({ item, gradeName, monthName }) => {
             />
             {gradeName && <Chip label={gradeName} size="small" />}
             {monthName && <Chip label={monthName} size="small" />}
+            {item.group_name && <Chip label={`Seccion ${item.group_name}`} size="small" />}
             {item.unit_number && <Chip label={item.unit_number} size="small" sx={{ fontWeight: 700 }} />}
           </Box>
           <Typography variant="h4" fontWeight={900} sx={{ fontSize: { xs: '1.6rem', md: '2rem' }, color: '#3e2723', mb: 0.75 }}>
@@ -241,6 +313,12 @@ const PlannerUnitCard = ({ item, gradeName, monthName }) => {
           </Button>
         )}
       </Box>
+
+      {item.presentation_video_url && (
+        <Box sx={{ mb: 2.5 }}>
+          <PlanningPresentationVideo url={item.presentation_video_url} />
+        </Box>
+      )}
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {(item.structured_content || []).map((week, weekIndex) => (
