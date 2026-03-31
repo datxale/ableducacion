@@ -29,13 +29,16 @@ import {
   Typography,
 } from '@mui/material';
 import {
+  AccountTree,
   Add,
   ArrowForward,
+  CalendarMonth,
   Clear,
   Delete,
   Edit,
   Groups,
   Home,
+  MenuBook,
   Save,
   School,
 } from '@mui/icons-material';
@@ -55,6 +58,21 @@ const emptyGroupForm = {
   teacher_id: '',
   is_active: true,
 };
+
+const MONTH_BRANCH_OPTIONS = [
+  { number: 1, name: 'Enero', accent: '#42a5f5' },
+  { number: 2, name: 'Febrero', accent: '#ef5350' },
+  { number: 3, name: 'Marzo', accent: '#66bb6a' },
+  { number: 4, name: 'Abril', accent: '#ffb300' },
+  { number: 5, name: 'Mayo', accent: '#ab47bc' },
+  { number: 6, name: 'Junio', accent: '#26c6da' },
+  { number: 7, name: 'Julio', accent: '#5c6bc0' },
+  { number: 8, name: 'Agosto', accent: '#8d6e63' },
+  { number: 9, name: 'Septiembre', accent: '#26a69a' },
+  { number: 10, name: 'Octubre', accent: '#ec407a' },
+  { number: 11, name: 'Noviembre', accent: '#ffa726' },
+  { number: 12, name: 'Diciembre', accent: '#78909c' },
+];
 
 const GradeDetailPage = () => {
   const { gradeId } = useParams();
@@ -281,7 +299,7 @@ const GradeDetailPage = () => {
   const handleOpenGroupSubjects = (group) => {
     setSelectedGroupId(String(group.id));
     setActiveTab(1);
-    setSuccess(`Seccion "${group.name}" seleccionada. Ahora estas viendo sus materias.`);
+    setSuccess(`Seccion "${group.name}" seleccionada. Ahora estas viendo su rama por meses, planificacion y actividades.`);
     setError('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -373,7 +391,7 @@ const GradeDetailPage = () => {
                 {grade?.name || `${gradeId} Grado`}
               </Typography>
               <Typography sx={{ color: 'rgba(255,255,255,0.9)', mt: 0.5, fontSize: '1.1rem' }}>
-                {grade?.description || 'Primero gestiona secciones y luego continua con materias.'}
+                {grade?.description || 'Primero gestiona secciones y luego continua con la rama por meses, planificacion y actividades.'}
               </Typography>
               <Stack direction="row" spacing={1} sx={{ mt: 1.5, flexWrap: 'wrap' }}>
                 <Chip
@@ -432,8 +450,8 @@ const GradeDetailPage = () => {
             <Tab
               label={
                 selectedGroup
-                  ? `Materias de ${selectedGroup.name} (${subjects.length})`
-                  : 'Materias de la seccion'
+                  ? `Rama de ${selectedGroup.name}`
+                  : 'Rama de la seccion'
               }
               disabled={!selectedGroup}
             />
@@ -446,7 +464,7 @@ const GradeDetailPage = () => {
                   <Groups color="primary" /> Secciones del grado
                 </Typography>
                 <Typography color="text.secondary" sx={{ mb: 3 }}>
-                  Al entrar a un grado, primero revisas y gestionas sus secciones. Dentro de cada seccion quedan sus materias, meses, semanas y contenidos.
+                  La rama academica ahora baja asi: Grado, Seccion, Mes, Planificacion y Actividades. Dentro de Actividades se organizan Semanas y, dentro de cada semana, los cursos.
                 </Typography>
 
                 <Paper sx={{ p: 2.5, borderRadius: '20px', border: '1px solid #edf2f7', boxShadow: 'none', mb: 3 }}>
@@ -520,7 +538,7 @@ const GradeDetailPage = () => {
                           {groupForm.id ? `Editar seccion: ${groupForm.name || 'sin nombre'}` : 'Nueva seccion'}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          Crea o actualiza la seccion y luego entra a sus materias.
+                          Crea o actualiza la seccion y luego entra a su rama por meses y actividades.
                         </Typography>
                       </Box>
                       {groupForm.id && (
@@ -638,7 +656,7 @@ const GradeDetailPage = () => {
                           <TableCell>Seccion</TableCell>
                           <TableCell>Docente</TableCell>
                           <TableCell>Estado</TableCell>
-                          {canManageGroups && <TableCell align="right">Acciones</TableCell>}
+                          <TableCell align="right">Acciones</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -668,36 +686,38 @@ const GradeDetailPage = () => {
                                   }
                                 />
                               </TableCell>
-                              {canManageGroups && (
-                                <TableCell align="right">
-                                  <Button
-                                    size="small"
-                                    startIcon={<ArrowForward />}
-                                    onClick={() => handleOpenGroupSubjects(group)}
-                                  >
-                                    Ver materias
-                                  </Button>
-                                  <Button
-                                    size="small"
-                                    startIcon={<Edit />}
-                                    onClick={() => {
-                                      setGroupForm({
-                                        id: group.id,
-                                        name: group.name,
-                                        description: group.description || '',
-                                        teacher_id: group.teacher_id || '',
-                                        is_active: group.is_active !== false,
-                                      });
-                                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                                    }}
-                                  >
-                                    Editar
-                                  </Button>
-                                  <Button size="small" color="error" startIcon={<Delete />} onClick={() => handleDeleteGroup(group)}>
-                                    Eliminar
-                                  </Button>
-                                </TableCell>
-                              )}
+                              <TableCell align="right">
+                                <Button
+                                  size="small"
+                                  startIcon={<AccountTree />}
+                                  onClick={() => handleOpenGroupSubjects(group)}
+                                >
+                                  Abrir rama
+                                </Button>
+                                {canManageGroups && (
+                                  <>
+                                    <Button
+                                      size="small"
+                                      startIcon={<Edit />}
+                                      onClick={() => {
+                                        setGroupForm({
+                                          id: group.id,
+                                          name: group.name,
+                                          description: group.description || '',
+                                          teacher_id: group.teacher_id || '',
+                                          is_active: group.is_active !== false,
+                                        });
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                      }}
+                                    >
+                                      Editar
+                                    </Button>
+                                    <Button size="small" color="error" startIcon={<Delete />} onClick={() => handleDeleteGroup(group)}>
+                                      Eliminar
+                                    </Button>
+                                  </>
+                                )}
+                              </TableCell>
                             </TableRow>
                           );
                         })}
@@ -719,12 +739,12 @@ const GradeDetailPage = () => {
                 >
                   <Box>
                     <Typography variant="h5" fontWeight={700}>
-                      {selectedGroup ? `Materias de ${selectedGroup.name}` : 'Materias disponibles'}
+                      {selectedGroup ? `Rama academica de ${selectedGroup.name}` : 'Rama de la seccion'}
                     </Typography>
                     <Typography color="text.secondary">
                       {selectedGroup
-                        ? `Estas trabajando dentro de la seccion ${selectedGroup.name}.`
-                        : 'Primero selecciona una seccion para ver sus materias.'}
+                        ? `Estas dentro de la ruta ${grade?.name || `Grado ${gradeId}`} > ${selectedGroup.name} > Mes > Planificacion y Actividades > Semanas > Cursos.`
+                        : 'Primero selecciona una seccion para ver su rama academica.'}
                     </Typography>
                   </Box>
                   <Stack direction="row" spacing={1} flexWrap="wrap">
@@ -747,7 +767,7 @@ const GradeDetailPage = () => {
                       Primero elige una seccion
                     </Typography>
                     <Typography color="text.secondary" sx={{ mb: 2 }}>
-                      Las materias quedan anexadas a la seccion seleccionada. Usa "Ver materias" en la pestana de secciones.
+                      Usa "Abrir rama" en la pestana de secciones para entrar por Mes y luego bajar a Planificacion, Actividades, Semanas y Cursos.
                     </Typography>
                     <Button variant="contained" onClick={() => setActiveTab(0)}>
                       Ir a secciones
@@ -757,171 +777,291 @@ const GradeDetailPage = () => {
 
                 {(selectedGroup || groups.length === 0) && (
                   <>
-                <Grid container spacing={2} alignItems="center" sx={{ mb: 3 }}>
-                  <Grid item xs={12} md={isAdmin ? 4 : 12}>
-                    <TextField
-                      fullWidth
-                      label="Buscar materia"
-                      placeholder="Escribe una materia"
-                      value={subjectSearch}
-                      onChange={(event) => setSubjectSearch(event.target.value)}
-                    />
-                  </Grid>
-
-                  {isAdmin && (
-                    <>
-                      <Grid item xs={12} md={5}>
-                        <TextField
-                          fullWidth
-                          label={subjectForm.id ? 'Editar materia' : 'Nueva materia'}
-                          placeholder="Ejemplo: Matematica"
-                          value={subjectForm.name}
-                          onChange={(event) => setSubjectForm((current) => ({ ...current, name: event.target.value }))}
-                        />
-                      </Grid>
-                      <Grid item xs={12} md={3}>
-                        <Stack direction="row" spacing={1}>
-                          <Button
-                            fullWidth
-                            variant="contained"
-                            startIcon={subjectForm.id ? <Save /> : <Add />}
-                            onClick={handleSaveSubject}
-                            disabled={savingSubject || !subjectForm.name.trim()}
+                    {selectedGroup && (
+                      <>
+                        <Paper
+                          sx={{
+                            p: 2.5,
+                            borderRadius: '20px',
+                            border: '1px solid #edf2f7',
+                            boxShadow: 'none',
+                            mb: 3,
+                            background: 'linear-gradient(135deg, #f8fbff 0%, #f3f8ff 100%)',
+                          }}
+                        >
+                          <Stack
+                            direction={{ xs: 'column', md: 'row' }}
+                            spacing={2}
+                            justifyContent="space-between"
+                            alignItems={{ xs: 'flex-start', md: 'center' }}
                           >
-                            {subjectForm.id ? 'Actualizar' : 'Agregar'}
-                          </Button>
-                          {subjectForm.id && (
-                            <Button variant="outlined" color="inherit" startIcon={<Clear />} onClick={() => setSubjectForm(emptySubjectForm)} disabled={savingSubject}>
-                              Cancelar
-                            </Button>
-                          )}
-                        </Stack>
-                      </Grid>
-                    </>
-                  )}
-                </Grid>
-
-                {filteredSubjects.length === 0 ? (
-                  <Paper sx={{ p: 5, textAlign: 'center', borderRadius: '24px' }}>
-                    <Typography variant="h6" fontWeight={800} sx={{ mb: 1 }}>
-                      {subjects.length === 0 ? 'No hay materias aun' : 'No hay resultados para ese filtro'}
-                    </Typography>
-                    <Typography color="text.secondary">
-                      {subjects.length === 0
-                        ? isAdmin
-                          ? 'Usa el panel superior para crear la primera materia de este grado.'
-                          : 'Las materias para este grado se anadiran pronto.'
-                        : 'Prueba con otra busqueda o limpia el filtro actual.'}
-                    </Typography>
-                  </Paper>
-                ) : (
-                  <Grid container spacing={3}>
-                    {filteredSubjects.map((subject, index) => {
-                      const color = subjectColors[index % subjectColors.length];
-                      return (
-                        <Grid item xs={12} sm={6} md={4} key={subject.id}>
-                          <Card
-                            onClick={() => {
-                              if (!selectedGroup) {
-                                navigate(`/subjects/${subject.id}`);
-                                return;
-                              }
-
-                              const params = new URLSearchParams({
-                                group_id: String(selectedGroup.id),
-                                group_name: selectedGroup.name,
-                              });
-
-                              navigate(`/subjects/${subject.id}?${params.toString()}`);
-                            }}
-                            sx={{
-                              cursor: 'pointer',
-                              border: `3px solid ${color}22`,
-                              borderRadius: '24px',
-                              height: '100%',
-                              transition: 'transform 0.25s ease, border-color 0.25s ease',
-                              '&:hover': {
-                                border: `3px solid ${color}66`,
-                                transform: 'translateY(-6px)',
-                              },
-                            }}
-                          >
-                            <CardContent sx={{ p: 3 }}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5, mb: 2 }}>
-                                <Avatar
-                                  sx={{
-                                    bgcolor: `${color}18`,
-                                    color,
-                                    width: 58,
-                                    height: 58,
-                                    border: `2px solid ${color}2f`,
-                                    fontWeight: 900,
-                                  }}
-                                >
-                                  {subject.name?.charAt(0)?.toUpperCase() || 'M'}
-                                </Avatar>
-
-                                {isAdmin && (
-                                  <Stack direction="row" spacing={1}>
-                                    <Button
-                                      size="small"
-                                      startIcon={<Edit />}
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        setSubjectForm({ id: subject.id, name: subject.name });
-                                        setActiveTab(1);
-                                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                                      }}
-                                    >
-                                      Editar
-                                    </Button>
-                                    <Button
-                                      size="small"
-                                      color="error"
-                                      startIcon={<Delete />}
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        handleDeleteSubject(subject);
-                                      }}
-                                    >
-                                      Eliminar
-                                    </Button>
-                                  </Stack>
-                                )}
-                              </Box>
-
-                              <Typography variant="h6" fontWeight={800} sx={{ lineHeight: 1.2, mb: 0.8 }}>
-                                {subject.name}
+                            <Box>
+                              <Typography variant="h6" fontWeight={800} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <CalendarMonth color="primary" /> Meses de la seccion
                               </Typography>
-                              <Typography variant="body2" color="text.secondary" sx={{ minHeight: 42 }}>
-                                {selectedGroup
-                                  ? `Revisa los meses, semanas y actividades de ${subject.name} para ${selectedGroup.name}.`
-                                  : 'Revisa los meses, semanas y actividades disponibles para esta materia.'}
+                              <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                                Entra primero al mes. Dentro del mes veras la planificacion publicada y la rama de actividades por semanas y cursos.
                               </Typography>
+                            </Box>
+                            <Chip
+                              label={`${MONTH_BRANCH_OPTIONS.length} meses disponibles`}
+                              sx={{ fontWeight: 700, bgcolor: '#e3f2fd', color: '#1565c0' }}
+                            />
+                          </Stack>
+                        </Paper>
 
-                              <Box
+                        <Grid container spacing={2.2} sx={{ mb: 4 }}>
+                          {MONTH_BRANCH_OPTIONS.map((monthItem) => (
+                            <Grid item xs={12} sm={6} md={4} lg={3} key={monthItem.number}>
+                              <Card
                                 sx={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 1,
-                                  p: 1.5,
-                                  background: `${color}11`,
-                                  borderRadius: '12px',
-                                  mt: 2,
+                                  height: '100%',
+                                  borderRadius: '22px',
+                                  border: `1px solid ${monthItem.accent}33`,
+                                  boxShadow: '0 10px 28px rgba(15, 23, 42, 0.06)',
                                 }}
                               >
-                                <Typography variant="body2" fontWeight={700} sx={{ color, flexGrow: 1 }}>
-                                  Ver meses del ano
-                                </Typography>
-                                  <ArrowForward sx={{ color, fontSize: '1rem' }} />
-                                </Box>
-                              </CardContent>
-                          </Card>
+                                <CardContent sx={{ p: 2.5 }}>
+                                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
+                                    <Box>
+                                      <Chip
+                                        label={`Mes ${monthItem.number}`}
+                                        size="small"
+                                        sx={{
+                                          mb: 1.2,
+                                          bgcolor: `${monthItem.accent}18`,
+                                          color: monthItem.accent,
+                                          fontWeight: 800,
+                                        }}
+                                      />
+                                      <Typography variant="h6" fontWeight={800}>
+                                        {monthItem.name}
+                                      </Typography>
+                                    </Box>
+                                    <Avatar
+                                      sx={{
+                                        width: 46,
+                                        height: 46,
+                                        bgcolor: `${monthItem.accent}15`,
+                                        color: monthItem.accent,
+                                        border: `1px solid ${monthItem.accent}33`,
+                                      }}
+                                    >
+                                      <CalendarMonth />
+                                    </Avatar>
+                                  </Stack>
+
+                                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1.2, minHeight: 56 }}>
+                                    Abre este mes para revisar planificacion por seccion y bajar despues a actividades, semanas y cursos.
+                                  </Typography>
+
+                                  <Stack direction="row" spacing={1} sx={{ mt: 2.2 }}>
+                                    <Button
+                                      fullWidth
+                                      variant="outlined"
+                                      startIcon={<MenuBook />}
+                                      onClick={() => navigate(`/grades/${gradeId}/sections/${selectedGroup.id}/month/${monthItem.number}?view=planning`)}
+                                    >
+                                      Planificacion
+                                    </Button>
+                                    <Button
+                                      fullWidth
+                                      variant="contained"
+                                      startIcon={<ArrowForward />}
+                                      onClick={() => navigate(`/grades/${gradeId}/sections/${selectedGroup.id}/month/${monthItem.number}?view=activities`)}
+                                      sx={{ bgcolor: monthItem.accent, '&:hover': { bgcolor: monthItem.accent } }}
+                                    >
+                                      Actividades
+                                    </Button>
+                                  </Stack>
+                                </CardContent>
+                              </Card>
+                            </Grid>
+                          ))}
                         </Grid>
-                      );
-                    })}
-                  </Grid>
-                )}
+                      </>
+                    )}
+
+                    <Paper sx={{ p: 2.5, borderRadius: '20px', border: '1px solid #edf2f7', boxShadow: 'none', mb: 3 }}>
+                      <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 0.5 }}>
+                        Cursos base del grado
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Estos cursos aparecen dentro de cada semana en la rama de actividades. Desde aqui el admin tambien puede seguir creandolos o editandolos.
+                      </Typography>
+                    </Paper>
+
+                    <Grid container spacing={2} alignItems="center" sx={{ mb: 3 }}>
+                      <Grid item xs={12} md={isAdmin ? 4 : 12}>
+                        <TextField
+                          fullWidth
+                          label="Buscar curso"
+                          placeholder="Escribe una materia o curso"
+                          value={subjectSearch}
+                          onChange={(event) => setSubjectSearch(event.target.value)}
+                        />
+                      </Grid>
+
+                      {isAdmin && (
+                        <>
+                          <Grid item xs={12} md={5}>
+                            <TextField
+                              fullWidth
+                              label={subjectForm.id ? 'Editar curso' : 'Nuevo curso'}
+                              placeholder="Ejemplo: Matematica"
+                              value={subjectForm.name}
+                              onChange={(event) => setSubjectForm((current) => ({ ...current, name: event.target.value }))}
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={3}>
+                            <Stack direction="row" spacing={1}>
+                              <Button
+                                fullWidth
+                                variant="contained"
+                                startIcon={subjectForm.id ? <Save /> : <Add />}
+                                onClick={handleSaveSubject}
+                                disabled={savingSubject || !subjectForm.name.trim()}
+                              >
+                                {subjectForm.id ? 'Actualizar' : 'Agregar'}
+                              </Button>
+                              {subjectForm.id && (
+                                <Button
+                                  variant="outlined"
+                                  color="inherit"
+                                  startIcon={<Clear />}
+                                  onClick={() => setSubjectForm(emptySubjectForm)}
+                                  disabled={savingSubject}
+                                >
+                                  Cancelar
+                                </Button>
+                              )}
+                            </Stack>
+                          </Grid>
+                        </>
+                      )}
+                    </Grid>
+
+                    {filteredSubjects.length === 0 ? (
+                      <Paper sx={{ p: 5, textAlign: 'center', borderRadius: '24px' }}>
+                        <Typography variant="h6" fontWeight={800} sx={{ mb: 1 }}>
+                          {subjects.length === 0 ? 'No hay cursos aun' : 'No hay resultados para ese filtro'}
+                        </Typography>
+                        <Typography color="text.secondary">
+                          {subjects.length === 0
+                            ? isAdmin
+                              ? 'Usa el panel superior para crear el primer curso de este grado.'
+                              : 'Los cursos para este grado se anadiran pronto.'
+                            : 'Prueba con otra busqueda o limpia el filtro actual.'}
+                        </Typography>
+                      </Paper>
+                    ) : (
+                      <Grid container spacing={3}>
+                        {filteredSubjects.map((subject, index) => {
+                          const color = subjectColors[index % subjectColors.length];
+                          return (
+                            <Grid item xs={12} sm={6} md={4} key={subject.id}>
+                              <Card
+                                onClick={() => {
+                                  if (!selectedGroup) {
+                                    navigate(`/subjects/${subject.id}`);
+                                    return;
+                                  }
+
+                                  const params = new URLSearchParams({
+                                    group_id: String(selectedGroup.id),
+                                    group_name: selectedGroup.name,
+                                  });
+
+                                  navigate(`/subjects/${subject.id}?${params.toString()}`);
+                                }}
+                                sx={{
+                                  cursor: 'pointer',
+                                  border: `3px solid ${color}22`,
+                                  borderRadius: '24px',
+                                  height: '100%',
+                                  transition: 'transform 0.25s ease, border-color 0.25s ease',
+                                  '&:hover': {
+                                    border: `3px solid ${color}66`,
+                                    transform: 'translateY(-6px)',
+                                  },
+                                }}
+                              >
+                                <CardContent sx={{ p: 3 }}>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5, mb: 2 }}>
+                                    <Avatar
+                                      sx={{
+                                        bgcolor: `${color}18`,
+                                        color,
+                                        width: 58,
+                                        height: 58,
+                                        border: `2px solid ${color}2f`,
+                                        fontWeight: 900,
+                                      }}
+                                    >
+                                      {subject.name?.charAt(0)?.toUpperCase() || 'M'}
+                                    </Avatar>
+
+                                    {isAdmin && (
+                                      <Stack direction="row" spacing={1}>
+                                        <Button
+                                          size="small"
+                                          startIcon={<Edit />}
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            setSubjectForm({ id: subject.id, name: subject.name });
+                                            setActiveTab(1);
+                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                          }}
+                                        >
+                                          Editar
+                                        </Button>
+                                        <Button
+                                          size="small"
+                                          color="error"
+                                          startIcon={<Delete />}
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            handleDeleteSubject(subject);
+                                          }}
+                                        >
+                                          Eliminar
+                                        </Button>
+                                      </Stack>
+                                    )}
+                                  </Box>
+
+                                  <Typography variant="h6" fontWeight={800} sx={{ lineHeight: 1.2, mb: 0.8 }}>
+                                    {subject.name}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary" sx={{ minHeight: 42 }}>
+                                    {selectedGroup
+                                      ? `Curso base del grado. Tambien aparecera dentro de las semanas de ${selectedGroup.name} en la rama de actividades.`
+                                      : 'Acceso directo al curso y a sus meses.'}
+                                  </Typography>
+
+                                  <Box
+                                    sx={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 1,
+                                      p: 1.5,
+                                      background: `${color}11`,
+                                      borderRadius: '12px',
+                                      mt: 2,
+                                    }}
+                                  >
+                                    <Typography variant="body2" fontWeight={700} sx={{ color, flexGrow: 1 }}>
+                                      Acceso directo al curso
+                                    </Typography>
+                                    <ArrowForward sx={{ color, fontSize: '1rem' }} />
+                                  </Box>
+                                </CardContent>
+                              </Card>
+                            </Grid>
+                          );
+                        })}
+                      </Grid>
+                    )}
                   </>
                 )}
               </>

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.middleware.auth import require_admin, require_admin_or_docente
+from app.middleware.auth import get_current_user, require_admin, require_admin_or_docente
 from app.models.academic_group import AcademicGroup
 from app.models.grade import Grade
 from app.models.live_class import LiveClass
@@ -80,10 +80,27 @@ def list_groups(
     teacher_id: Optional[int] = Query(None),
     is_active: Optional[bool] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_docente),
+    current_user: User = Depends(get_current_user),
 ):
     query = db.query(AcademicGroup)
-    if current_user.role == UserRole.docente:
+    if current_user.role == UserRole.estudiante:
+        if current_user.grade_id is None or current_user.group_id is None:
+            return []
+        if grade_id is not None and grade_id != current_user.grade_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tiene permisos para consultar secciones de otro grado",
+            )
+        if teacher_id is not None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tiene permisos para filtrar por docente",
+            )
+        query = query.filter(
+            AcademicGroup.grade_id == current_user.grade_id,
+            AcademicGroup.id == current_user.group_id,
+        )
+    elif current_user.role == UserRole.docente:
         allowed_grade_ids = _allowed_grade_ids_for_teacher(db, current_user.id)
         if teacher_id is not None and teacher_id != current_user.id:
             raise HTTPException(
@@ -111,7 +128,7 @@ def list_groups(
 def get_group(
     group_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_docente),
+    current_user: User = Depends(get_current_user),
 ):
     group = db.query(AcademicGroup).filter(AcademicGroup.id == group_id).first()
     if not group:
@@ -119,6 +136,13 @@ def get_group(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Grupo no encontrado",
         )
+    if current_user.role == UserRole.estudiante:
+        if current_user.group_id != group.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tiene permisos para acceder a esta seccion",
+            )
+        return group
     _ensure_docente_can_access_group(db, current_user, group)
     return group
 

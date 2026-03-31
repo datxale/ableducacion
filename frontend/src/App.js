@@ -15,6 +15,7 @@ import RegisterPage from './pages/Auth/RegisterPage';
 import DashboardPage from './pages/Dashboard/DashboardPage';
 import GradesPage from './pages/Grades/GradesPage';
 import GradeDetailPage from './pages/Grades/GradeDetailPage';
+import SectionMonthBranchPage from './pages/Grades/SectionMonthBranchPage';
 import SubjectPage from './pages/Subjects/SubjectPage';
 import MonthPage from './pages/Activities/MonthPage';
 import WeekPage from './pages/Activities/WeekPage';
@@ -89,6 +90,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <GradeDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/grades/:gradeId/sections/:groupId/month/:month"
+            element={
+              <ProtectedRoute>
+                <SectionMonthBranchPage />
               </ProtectedRoute>
             }
           />
