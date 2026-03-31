@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import * as THREE from 'three';
 
 const createParticles = (count) => {
@@ -32,7 +32,7 @@ const disposeMaterial = (material) => {
   }
 };
 
-const HeroThreeScene = ({ highlights = [] }) => {
+const HeroThreeScene = () => {
   const mountRef = useRef(null);
 
   useEffect(() => {
@@ -398,51 +398,6 @@ const HeroThreeScene = ({ highlights = [] }) => {
           pointerEvents: 'none',
         }}
       />
-
-      {highlights.slice(0, 3).map((label, index) => (
-        <Box
-          key={`${label}-${index}`}
-          sx={{
-            position: 'absolute',
-            left: index === 2 ? 'auto' : { xs: 16, sm: 22 },
-            right: index === 2 ? { xs: 16, sm: 22 } : 'auto',
-            top: index === 0 ? { xs: 16, sm: 22 } : 'auto',
-            bottom: index === 0 ? 'auto' : index === 1 ? { xs: 20, sm: 24 } : { xs: 82, sm: 102 },
-            maxWidth: { xs: 180, sm: 220 },
-            px: 1.8,
-            py: 1.2,
-            borderRadius: '18px',
-            background: 'rgba(255,255,255,0.12)',
-            backdropFilter: 'blur(16px)',
-            border: '1px solid rgba(255,255,255,0.16)',
-            boxShadow: '0 18px 35px rgba(3, 12, 30, 0.22)',
-            pointerEvents: 'none',
-          }}
-        >
-          <Typography
-            sx={{
-              fontSize: '0.72rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'rgba(255,255,255,0.7)',
-              fontWeight: 800,
-              mb: 0.4,
-            }}
-          >
-            0{index + 1}
-          </Typography>
-          <Typography
-            sx={{
-              color: '#fff',
-              fontWeight: 800,
-              fontSize: { xs: '0.85rem', sm: '0.95rem' },
-              lineHeight: 1.35,
-            }}
-          >
-            {label}
-          </Typography>
-        </Box>
-      ))}
     </Box>
   );
 };

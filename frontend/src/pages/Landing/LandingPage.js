@@ -80,10 +80,6 @@ const HeroMediaFrame = ({ slide }) => {
       <Box sx={frameStyles}>
         <Box component="video" src={slide.media_url} poster={slide.poster_url || undefined} muted autoPlay loop playsInline sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.04)' }} />
         <Box sx={{ position: 'absolute', inset: 0, background: `linear-gradient(180deg, rgba(5,10,24,0.08) 0%, ${slide.overlay_color} 100%)` }} />
-        <Box sx={{ position: 'absolute', left: 20, bottom: 20, px: 2, py: 1.4, borderRadius: '20px', background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.16)', backdropFilter: 'blur(18px)', color: '#fff' }}>
-          <Typography sx={{ fontSize: '0.72rem', letterSpacing: '0.15em', opacity: 0.7, fontWeight: 800 }}>VIDEO HERO</Typography>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 800 }}>Portada en movimiento</Typography>
-        </Box>
       </Box>
     );
   }
@@ -93,10 +89,6 @@ const HeroMediaFrame = ({ slide }) => {
       <Box sx={frameStyles}>
         <Box sx={{ position: 'absolute', inset: 0, backgroundImage: `url(${slide.media_url})`, backgroundSize: 'cover', backgroundPosition: 'center', transform: 'scale(1.04)' }} />
         <Box sx={{ position: 'absolute', inset: 0, background: `linear-gradient(110deg, ${slide.overlay_color} 0%, rgba(6,15,35,0.2) 100%)` }} />
-        <Box sx={{ position: 'absolute', right: 20, top: 20, px: 2, py: 1.4, borderRadius: '20px', background: 'rgba(6,15,35,0.42)', border: '1px solid rgba(255,255,255,0.14)', backdropFilter: 'blur(18px)', color: '#fff' }}>
-          <Typography sx={{ fontSize: '0.72rem', letterSpacing: '0.15em', opacity: 0.7, fontWeight: 800 }}>IMAGEN DESTACADA</Typography>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 800 }}>Slide administrable</Typography>
-        </Box>
       </Box>
     );
   }
@@ -264,10 +256,6 @@ const LandingPage = () => {
             <Box sx={{ display: 'flex', justifyContent: { xs: 'center', lg: 'flex-end' } }}>
               <Box sx={{ position: 'relative', width: '100%', maxWidth: { xs: 620, lg: 700 } }}>
                 <HeroMediaFrame slide={activeSlide} />
-                <Box sx={{ position: 'absolute', left: { xs: 16, md: -34 }, bottom: { xs: -20, md: 34 }, width: { xs: 220, md: 250 }, p: 2.2, borderRadius: '24px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.14)', color: '#fff', backdropFilter: 'blur(18px)', boxShadow: '0 24px 48px rgba(5,9,22,0.2)' }}>
-                  <Typography sx={{ fontSize: '0.72rem', letterSpacing: '0.16em', opacity: 0.7, fontWeight: 800, mb: 0.6 }}>EXPERIENCIA</Typography>
-                  <Typography sx={{ fontSize: '1.05rem', fontWeight: 800, lineHeight: 1.3 }}>Header transparente, hero rotativo y contenido editable desde admin</Typography>
-                </Box>
               </Box>
             </Box>
           </Box>
