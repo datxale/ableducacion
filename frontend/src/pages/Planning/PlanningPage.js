@@ -5,21 +5,11 @@ import {
   Box,
   Breadcrumbs,
   Button,
-  Card,
-  CardContent,
   Chip,
-  CircularProgress,
   Container,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
   Grid,
   Link,
   Paper,
-  Tab,
-  Tabs,
   Typography,
 } from '@mui/material';
 import {
@@ -28,12 +18,8 @@ import {
   Download,
   Home,
   Launch,
-  MenuBook,
   PlayCircle,
-  Refresh,
-  Schedule,
   Settings,
-  VideoCall,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -45,41 +31,6 @@ import {
   getPlanningTypeMeta,
   getYoutubeEmbedUrl,
 } from '../../utils/planning';
-
-const GOOGLE_CALENDAR_URL = 'https://calendar.google.com/calendar/u/0/r/week';
-const DEFAULT_CALENDAR_STATUS = {
-  google_meet_enabled: false,
-  auto_recording_enabled: false,
-  calendar_embed_url: '',
-  calendar_public_url: GOOGLE_CALENDAR_URL,
-};
-
-const getValidDate = (value) => {
-  if (!value) return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-
-const formatDate = (value, options) => {
-  const parsed = getValidDate(value);
-  if (!parsed) return 'Sin fecha';
-  return parsed.toLocaleString('es-PE', options);
-};
-
-const getRecordingStatus = (liveClass) => {
-  switch (liveClass?.recording_status) {
-    case 'available':
-      return { label: 'Grabacion disponible', bg: '#e8f5e9', color: '#2e7d32' };
-    case 'recording':
-      return { label: 'Grabando ahora', bg: '#ffebee', color: '#c62828' };
-    case 'processing':
-      return { label: 'Procesando grabacion', bg: '#fff8e1', color: '#ef6c00' };
-    case 'pending':
-      return { label: 'Grabacion pendiente', bg: '#f3e5f5', color: '#7b1fa2' };
-    default:
-      return null;
-  }
-};
 
 const PlanningPresentationVideo = ({ url }) => {
   if (!url) return null;
@@ -146,77 +97,6 @@ const PlanningPresentationVideo = ({ url }) => {
     </Paper>
   );
 };
-
-const PlanningCard = ({ item, gradeName, monthName }) => (
-  <Card sx={{ height: '100%', borderRadius: '20px' }}>
-    <CardContent sx={{ p: 2.5 }}>
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 2 }}>
-        <Avatar
-          sx={{
-            bgcolor: item.planning_type === 'horario' ? '#fff3e0' : '#e3f2fd',
-            width: 48,
-            height: 48,
-          }}
-        >
-          {item.planning_type === 'horario' ? (
-            <Schedule sx={{ color: '#f57c00' }} />
-          ) : (
-            <MenuBook sx={{ color: '#1976d2' }} />
-          )}
-        </Avatar>
-        <Box sx={{ flexGrow: 1 }}>
-          <Typography variant="subtitle1" fontWeight={700} sx={{ lineHeight: 1.3 }}>
-            {item.title}
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 0.75, mt: 0.75, flexWrap: 'wrap' }}>
-            <Chip
-              label={item.planning_type === 'horario' ? 'Horario' : 'Guia'}
-              size="small"
-              sx={{
-                bgcolor: item.planning_type === 'horario' ? '#fff3e0' : '#e3f2fd',
-                color: item.planning_type === 'horario' ? '#f57c00' : '#1976d2',
-                fontWeight: 700,
-              }}
-            />
-            {gradeName && <Chip label={gradeName} size="small" />}
-            {monthName && <Chip label={monthName} size="small" />}
-            {item.group_name && <Chip label={`Seccion ${item.group_name}`} size="small" />}
-          </Box>
-        </Box>
-      </Box>
-
-      {item.description && (
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{
-            mb: 2,
-            display: '-webkit-box',
-            WebkitLineClamp: 3,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          }}
-        >
-          {item.description}
-        </Typography>
-      )}
-
-      <Divider sx={{ mb: 2 }} />
-
-      <Button
-        fullWidth
-        variant={item.file_url ? 'contained' : 'outlined'}
-        startIcon={<Download />}
-        href={item.file_url || undefined}
-        target={item.file_url ? '_blank' : undefined}
-        rel={item.file_url ? 'noreferrer' : undefined}
-        disabled={!item.file_url}
-      >
-        {item.file_url ? 'Descargar recurso' : 'Recurso no disponible'}
-      </Button>
-    </CardContent>
-  </Card>
-);
 
 const PlannerUnitCard = ({ item, gradeName, monthName }) => {
   const planningMeta = getPlanningTypeMeta(item.planning_type);
@@ -375,53 +255,26 @@ const PlannerUnitCard = ({ item, gradeName, monthName }) => {
 const PlanningPage = () => {
   const navigate = useNavigate();
   const { user, isEstudiante, isDocente, isAdmin } = useAuth();
-  const [tabValue, setTabValue] = useState(0);
   const [items, setItems] = useState([]);
   const [grades, setGrades] = useState([]);
   const [months, setMonths] = useState([]);
-  const [liveClasses, setLiveClasses] = useState([]);
-  const [calendarStatus, setCalendarStatus] = useState(DEFAULT_CALENDAR_STATUS);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [recordingDialogOpen, setRecordingDialogOpen] = useState(false);
-  const [recordingLoading, setRecordingLoading] = useState(false);
-  const [recordingBlobUrl, setRecordingBlobUrl] = useState('');
-  const [recordingClass, setRecordingClass] = useState(null);
-
-  const classesManagementPath = isAdmin ? '/admin/classes' : '/teaching/classes';
-  const classesPath = isAdmin || isDocente ? classesManagementPath : '/live-classes';
-
-  useEffect(() => () => {
-    if (recordingBlobUrl) {
-      URL.revokeObjectURL(recordingBlobUrl);
-    }
-  }, [recordingBlobUrl]);
 
   useEffect(() => {
     const loadPageData = async () => {
       setLoading(true);
       setError('');
 
-      const liveClassParams =
-        isEstudiante && user?.grade_id
-          ? { grade_id: user.grade_id }
-          : isDocente && user?.id
-            ? { teacher_id: user.id }
-            : undefined;
-
-      const [planningRes, gradesRes, monthsRes, liveClassesRes, calendarRes] = await Promise.allSettled([
+      const [planningRes, gradesRes, monthsRes] = await Promise.allSettled([
         axiosInstance.get('/planning/', {
           params: isEstudiante && user?.grade_id ? { grade_id: user.grade_id } : undefined,
         }),
         axiosInstance.get('/grades/'),
         axiosInstance.get('/months/'),
-        axiosInstance.get('/live-classes/', { params: liveClassParams }),
-        axiosInstance.get('/live-classes/config/status'),
       ]);
 
       const hasCoreError = [planningRes, gradesRes, monthsRes].some((result) => result.status !== 'fulfilled');
-      const hasAgendaError = [liveClassesRes, calendarRes].some((result) => result.status !== 'fulfilled');
 
       if (planningRes.status === 'fulfilled') {
         setItems(planningRes.value.data?.results || planningRes.value.data || []);
@@ -444,31 +297,15 @@ const PlanningPage = () => {
         console.error(monthsRes.reason);
       }
 
-      if (liveClassesRes.status === 'fulfilled') {
-        setLiveClasses(liveClassesRes.value.data?.results || liveClassesRes.value.data || []);
-      } else {
-        setLiveClasses([]);
-        console.error(liveClassesRes.reason);
-      }
-
-      if (calendarRes.status === 'fulfilled') {
-        setCalendarStatus({ ...DEFAULT_CALENDAR_STATUS, ...(calendarRes.value.data || {}) });
-      } else {
-        setCalendarStatus(DEFAULT_CALENDAR_STATUS);
-        console.error(calendarRes.reason);
-      }
-
       if (hasCoreError) {
         setError('Error al cargar la planificacion principal.');
-      } else if (hasAgendaError) {
-        setError('La agenda de clases no pudo cargarse por completo, pero el planificador sigue disponible.');
       }
 
       setLoading(false);
     };
 
     loadPageData();
-  }, [isDocente, isEstudiante, refreshKey, user?.grade_id, user?.id]);
+  }, [isEstudiante, user?.grade_id]);
 
   const gradesById = useMemo(
     () => Object.fromEntries(grades.map((grade) => [grade.id, grade])),
@@ -488,64 +325,7 @@ const PlanningPage = () => {
     return items.filter((item) => item.grade_id === user.grade_id);
   }, [isEstudiante, items, user?.grade_id]);
 
-  const agendaItems = useMemo(() => {
-    return [...liveClasses]
-      .filter((item) => getValidDate(item.scheduled_at))
-      .sort((left, right) => getValidDate(left.scheduled_at) - getValidDate(right.scheduled_at));
-  }, [liveClasses]);
-
-  const highlightedAgenda = useMemo(() => {
-    const now = new Date();
-    const currentOrUpcoming = agendaItems.filter((item) => {
-      const scheduledAt = getValidDate(item.scheduled_at);
-      return scheduledAt && scheduledAt.getTime() >= now.getTime() - 90 * 60 * 1000;
-    });
-
-    return (currentOrUpcoming.length > 0 ? currentOrUpcoming : agendaItems).slice(0, 5);
-  }, [agendaItems]);
-
   const planificadores = visibleItems.filter((item) => item.planning_type === 'planificador');
-  const horarios = visibleItems.filter((item) => item.planning_type === 'horario');
-  const guias = visibleItems.filter((item) => item.planning_type === 'guia');
-  const currentItems = tabValue === 0 ? horarios : guias;
-  const availableRecordingCount = liveClasses.filter((item) => item.recording_status === 'available').length;
-  const pendingRecordingCount = liveClasses.filter(
-    (item) => item.recording_status && item.recording_status !== 'available'
-  ).length;
-  const calendarPublicUrl = calendarStatus.calendar_public_url || GOOGLE_CALENDAR_URL;
-  const calendarEmbedUrl = calendarStatus.calendar_embed_url || '';
-
-  const handleOpenRecording = async (liveClass) => {
-    setRecordingClass(liveClass);
-    setRecordingDialogOpen(true);
-    setRecordingLoading(true);
-
-    try {
-      const response = await axiosInstance.get(`/live-classes/${liveClass.id}/recording/stream`, {
-        responseType: 'blob',
-      });
-      if (recordingBlobUrl) {
-        URL.revokeObjectURL(recordingBlobUrl);
-      }
-      setRecordingBlobUrl(URL.createObjectURL(response.data));
-      setRefreshKey((value) => value + 1);
-    } catch (err) {
-      setRecordingDialogOpen(false);
-      setError(err.response?.data?.detail || 'No se pudo abrir la grabacion.');
-    } finally {
-      setRecordingLoading(false);
-    }
-  };
-
-  const closeRecordingDialog = () => {
-    setRecordingDialogOpen(false);
-    setRecordingLoading(false);
-    setRecordingClass(null);
-    if (recordingBlobUrl) {
-      URL.revokeObjectURL(recordingBlobUrl);
-      setRecordingBlobUrl('');
-    }
-  };
 
   if (loading) return <LoadingSpinner message="Cargando planificacion..." />;
 
@@ -692,460 +472,7 @@ const PlanningPage = () => {
             </Box>
           )}
         </Paper>
-
-        <Paper
-          sx={{
-            p: 3,
-            mb: 3,
-            borderRadius: '24px',
-            background: 'linear-gradient(135deg, #ffffff 0%, #fdf2ff 100%)',
-            border: '1px solid #f3e5f5',
-            boxShadow: '0 18px 50px rgba(84, 27, 94, 0.08)',
-          }}
-        >
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={5}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-                <Avatar sx={{ bgcolor: '#6a1b9a', width: 52, height: 52 }}>
-                  <CalendarMonth />
-                </Avatar>
-                <Box>
-                  <Typography variant="h5" fontWeight={800}>
-                    Agenda de clases en vivo
-                  </Typography>
-                  <Typography color="text.secondary">
-                    Google Calendar queda como agenda sincronizada de Meet, Drive y clases en vivo, separada del planificador pedagogico.
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-                <Chip
-                  label={calendarStatus.google_meet_enabled ? 'Google Meet activo' : 'Google Meet inactivo'}
-                  sx={{
-                    bgcolor: calendarStatus.google_meet_enabled ? '#e8f5e9' : '#fff3e0',
-                    color: calendarStatus.google_meet_enabled ? '#2e7d32' : '#ef6c00',
-                    fontWeight: 700,
-                  }}
-                />
-                <Chip
-                  label={`${liveClasses.length} clase${liveClasses.length === 1 ? '' : 's'} sincronizada${liveClasses.length === 1 ? '' : 's'}`}
-                  sx={{ bgcolor: '#e3f2fd', color: '#1565c0', fontWeight: 700 }}
-                />
-                <Chip
-                  label={`${availableRecordingCount} grabacion${availableRecordingCount === 1 ? '' : 'es'} disponible${availableRecordingCount === 1 ? '' : 's'}`}
-                  sx={{ bgcolor: '#e8f5e9', color: '#2e7d32', fontWeight: 700 }}
-                />
-                <Chip
-                  label={`${pendingRecordingCount} pendiente${pendingRecordingCount === 1 ? '' : 's'} de Drive`}
-                  sx={{ bgcolor: '#f3e5f5', color: '#7b1fa2', fontWeight: 700 }}
-                />
-              </Box>
-
-              <Typography color="text.secondary" sx={{ mb: 2 }}>
-                Flujo real: el docente programa la clase, Google Calendar crea el evento, Meet genera la reunion,
-                Drive procesa la grabacion y luego el video queda disponible dentro de la plataforma.
-              </Typography>
-
-              <Alert
-                severity={calendarStatus.google_meet_enabled ? 'success' : 'info'}
-                sx={{ mb: 2, borderRadius: '14px' }}
-              >
-                {calendarStatus.google_meet_enabled
-                  ? calendarStatus.auto_recording_enabled
-                    ? 'La integracion de Google ya esta operativa y la sincronizacion de grabaciones se revisa automaticamente.'
-                    : 'La integracion con Google Meet esta activa, pero la auto grabacion esta deshabilitada.'
-                  : 'La agenda de Google todavia no esta activa en este servidor.'}
-              </Alert>
-
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                <Button
-                  variant="contained"
-                  startIcon={<VideoCall />}
-                  onClick={() => navigate(classesPath)}
-                  sx={{ background: '#6a1b9a', '&:hover': { background: '#4a148c' } }}
-                >
-                  {isAdmin || isDocente ? 'Gestionar clases' : 'Ver clases'}
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<Launch />}
-                  href={calendarPublicUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  sx={{ borderColor: '#6a1b9a', color: '#6a1b9a' }}
-                >
-                  Abrir Google Calendar
-                </Button>
-                <Button
-                  variant="text"
-                  startIcon={<Refresh />}
-                  onClick={() => setRefreshKey((value) => value + 1)}
-                  sx={{ color: '#6a1b9a' }}
-                >
-                  Actualizar agenda
-                </Button>
-              </Box>
-            </Grid>
-
-            <Grid item xs={12} md={7}>
-              <Paper
-                variant="outlined"
-                sx={{
-                  height: '100%',
-                  borderRadius: '20px',
-                  p: 2,
-                  borderColor: '#ede7f6',
-                  background: '#fff',
-                }}
-              >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, mb: 2 }}>
-                  <Typography variant="h6" fontWeight={800}>
-                    Agenda sincronizada
-                  </Typography>
-                  <Chip
-                    label={highlightedAgenda.length > 0 ? 'Vista desde Planificacion' : 'Sin clases programadas'}
-                    size="small"
-                    sx={{ bgcolor: '#f5f5f5', color: '#555', fontWeight: 700 }}
-                  />
-                </Box>
-
-                {highlightedAgenda.length === 0 ? (
-                  <Box
-                    sx={{
-                      minHeight: 240,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      textAlign: 'center',
-                      px: 2,
-                    }}
-                  >
-                    <Box>
-                      <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>
-                        Aun no hay clases en el calendario
-                      </Typography>
-                      <Typography color="text.secondary" sx={{ mb: 2 }}>
-                        Cuando programes una clase con Google Meet, aparecera aqui como parte de la agenda.
-                      </Typography>
-                      {(isAdmin || isDocente) && (
-                        <Button variant="contained" onClick={() => navigate(classesManagementPath)}>
-                          Crear primera clase
-                        </Button>
-                      )}
-                    </Box>
-                  </Box>
-                ) : (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-                    {highlightedAgenda.map((liveClass) => {
-                      const recordingStatus = getRecordingStatus(liveClass);
-                      const canShowRecording = Boolean(
-                        liveClass.recording_status === 'available' || liveClass.recording_file_id || liveClass.recording_url
-                      );
-
-                      return (
-                        <Paper
-                          key={liveClass.id}
-                          variant="outlined"
-                          sx={{
-                            p: 2,
-                            borderRadius: '18px',
-                            borderColor: '#ede7f6',
-                            background: liveClass.meeting_provider === 'google_meet' ? '#fcf7ff' : '#fff',
-                          }}
-                        >
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, mb: 1.25, flexWrap: 'wrap' }}>
-                            <Box>
-                              <Typography fontWeight={800}>{liveClass.title}</Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {liveClass.subject?.name || 'Clase en vivo'} -{' '}
-                                {liveClass.grade?.name || `Grado ${liveClass.grade_id}`}
-                              </Typography>
-                            </Box>
-                            <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-                              {liveClass.meeting_provider === 'google_meet' && (
-                                <Chip
-                                  label="Google Meet"
-                                  size="small"
-                                  sx={{ bgcolor: '#e8eaf6', color: '#3949ab', fontWeight: 700 }}
-                                />
-                              )}
-                              {recordingStatus && (
-                                <Chip
-                                  label={recordingStatus.label}
-                                  size="small"
-                                  sx={{
-                                    bgcolor: recordingStatus.bg,
-                                    color: recordingStatus.color,
-                                    fontWeight: 700,
-                                  }}
-                                />
-                              )}
-                            </Box>
-                          </Box>
-
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.25 }}>
-                            {formatDate(liveClass.scheduled_at, {
-                              weekday: 'long',
-                              day: 'numeric',
-                              month: 'long',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </Typography>
-
-                          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                            <Button
-                              size="small"
-                              variant="contained"
-                              startIcon={<VideoCall />}
-                              onClick={() => navigate('/live-classes')}
-                              sx={{ background: '#6a1b9a', '&:hover': { background: '#4a148c' } }}
-                            >
-                              Abrir en plataforma
-                            </Button>
-                            {liveClass.meeting_url && (
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                startIcon={<Launch />}
-                                href={liveClass.meeting_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                sx={{ borderColor: '#6a1b9a', color: '#6a1b9a' }}
-                              >
-                                Abrir Meet
-                              </Button>
-                            )}
-                            {canShowRecording && (
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                startIcon={<PlayCircle />}
-                                onClick={() => handleOpenRecording(liveClass)}
-                                sx={{ borderColor: '#2e7d32', color: '#2e7d32' }}
-                              >
-                                Ver grabacion
-                              </Button>
-                            )}
-                          </Box>
-                        </Paper>
-                      );
-                    })}
-                  </Box>
-                )}
-              </Paper>
-            </Grid>
-          </Grid>
-
-          <Divider sx={{ my: 3 }} />
-
-          <Paper
-            variant="outlined"
-            sx={{
-              borderRadius: '22px',
-              p: 2,
-              borderColor: '#ede7f6',
-              background: '#fff',
-            }}
-          >
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: 2,
-                mb: 2,
-                flexWrap: 'wrap',
-              }}
-            >
-              <Box>
-                <Typography variant="h6" fontWeight={800}>
-                  Vista Google Calendar
-                </Typography>
-                <Typography color="text.secondary">
-                  Esta es la agenda de la cuenta conectada en Google. Si no carga, abre el calendario en otra pestana o inicia sesion en Google.
-                </Typography>
-              </Box>
-              <Chip
-                label={calendarEmbedUrl ? 'Calendario embebido activo' : 'Usa el acceso directo'}
-                sx={{
-                  bgcolor: calendarEmbedUrl ? '#e8f5e9' : '#fff3e0',
-                  color: calendarEmbedUrl ? '#2e7d32' : '#ef6c00',
-                  fontWeight: 700,
-                }}
-              />
-            </Box>
-
-            {calendarEmbedUrl ? (
-              <Box
-                sx={{
-                  borderRadius: '18px',
-                  overflow: 'hidden',
-                  border: '1px solid #ede7f6',
-                  background: '#fff',
-                  height: { xs: 520, md: 640 },
-                }}
-              >
-                <Box
-                  component="iframe"
-                  title="Google Calendar embebido"
-                  src={calendarEmbedUrl}
-                  sx={{ width: '100%', height: '100%', border: 0, display: 'block' }}
-                  allowFullScreen
-                />
-              </Box>
-            ) : (
-              <Alert severity="info" sx={{ borderRadius: '14px' }}>
-                El iframe del calendario no esta disponible todavia. Puedes abrir Google Calendar desde el acceso directo mientras se completa esa configuracion.
-              </Alert>
-            )}
-          </Paper>
-        </Paper>
-
-        {(isDocente || isAdmin) && (
-          <Paper
-            sx={{
-              p: 2.5,
-              mb: 3,
-              borderRadius: '20px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: 2,
-              flexWrap: 'wrap',
-              background: 'linear-gradient(135deg, #fff3e0, #ffffff)',
-              border: '1px solid #ffe0b2',
-            }}
-          >
-            <Box>
-              <Typography variant="h6" fontWeight={700} sx={{ mb: 0.5 }}>
-                Crear y publicar planificacion
-              </Typography>
-              <Typography color="text.secondary">
-                Desde aqui gestionas planificadores por unidad, horarios y guias. Las clases que deben ir a Google Calendar se programan aparte desde Gestionar clases.
-              </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              <Button
-                variant="contained"
-                startIcon={<TableChart />}
-                onClick={() => navigate('/planning/manage')}
-                sx={{ background: '#6d4c41', '&:hover': { background: '#5d4037' } }}
-              >
-                Nuevo planificador
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<MenuBook />}
-                onClick={() => navigate('/planning/manage')}
-                sx={{ borderColor: '#6d4c41', color: '#6d4c41' }}
-              >
-                Ver recursos
-              </Button>
-            </Box>
-          </Paper>
-        )}
-
-        <Paper
-          sx={{
-            background: '#fff',
-            borderRadius: '16px',
-            p: 1,
-            mb: 3,
-            display: 'inline-flex',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
-          }}
-        >
-          <Tabs
-            value={tabValue}
-            onChange={(_, value) => setTabValue(value)}
-            sx={{
-              '& .MuiTab-root': {
-                borderRadius: '10px',
-                fontWeight: 600,
-                minHeight: 36,
-                py: 0.5,
-              },
-              '& .Mui-selected': {
-                background: 'linear-gradient(135deg, #ff9800, #ffd200)',
-                color: '#fff !important',
-              },
-              '& .MuiTabs-indicator': { display: 'none' },
-            }}
-          >
-            <Tab label={`Horarios (${horarios.length})`} />
-            <Tab label={`Guias (${guias.length})`} />
-          </Tabs>
-        </Paper>
-
-        {currentItems.length === 0 ? (
-          <Paper
-            sx={{
-              p: 6,
-              textAlign: 'center',
-              borderRadius: '20px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-            }}
-          >
-            <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>
-              No hay {tabValue === 0 ? 'horarios' : 'guias'} disponibles
-            </Typography>
-            <Typography color="text.secondary">
-              {isEstudiante && user?.grade_id
-                ? 'Todavia no hay recursos publicados para tu grado.'
-                : 'Todavia no hay recursos publicados en esta categoria.'}
-            </Typography>
-            {(isDocente || isAdmin) && (
-              <Button
-                variant="contained"
-                startIcon={<Settings />}
-                onClick={() => navigate('/planning/manage')}
-                sx={{ mt: 3, background: '#ef6c00', '&:hover': { background: '#e65100' } }}
-              >
-                Publicar primer recurso
-              </Button>
-            )}
-          </Paper>
-        ) : (
-          <Grid container spacing={2.5}>
-            {currentItems.map((item) => (
-              <Grid item xs={12} sm={6} md={4} key={item.id}>
-                <PlanningCard
-                  item={item}
-                  gradeName={gradesById[item.grade_id]?.name}
-                  monthName={item.month_id ? monthsById[item.month_id]?.name : null}
-                />
-              </Grid>
-            ))}
-          </Grid>
-        )}
       </Container>
-
-      <Dialog open={recordingDialogOpen} onClose={closeRecordingDialog} maxWidth="md" fullWidth>
-        <DialogTitle>{recordingClass ? `Grabacion: ${recordingClass.title}` : 'Grabacion de clase'}</DialogTitle>
-        <DialogContent>
-          {recordingLoading ? (
-            <Box sx={{ py: 4, textAlign: 'center' }}>
-              <CircularProgress />
-            </Box>
-          ) : recordingBlobUrl ? (
-            <Box
-              component="video"
-              src={recordingBlobUrl}
-              controls
-              sx={{ width: '100%', borderRadius: '12px', background: '#000', minHeight: 360 }}
-            />
-          ) : (
-            <Alert severity="info" sx={{ mt: 1 }}>
-              La grabacion aun no esta disponible.
-            </Alert>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeRecordingDialog}>Cerrar</Button>
-        </DialogActions>
-      </Dialog>
 
       <Footer />
     </Box>
