@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -10,6 +10,7 @@ import {
   Grid,
   IconButton,
   InputAdornment,
+  MenuItem,
   Paper,
   Step,
   StepLabel,
@@ -33,6 +34,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
+import axiosInstance from '../../api/axios';
 import WhatsAppFab from '../../components/common/WhatsAppFab';
 import { useAuth } from '../../context/AuthContext';
 
@@ -46,7 +48,7 @@ const roleCards = [
     color: '#2e7d32',
     background: 'linear-gradient(135deg, rgba(46,125,50,0.14) 0%, rgba(102,187,106,0.08) 100%)',
     description: 'Registro rapido para entrar a clases, actividades y seguimiento.',
-    highlights: ['Nombre completo', 'Edad', 'Correo', 'Contrasena'],
+    highlights: ['Nombre completo', 'Edad', 'Grado', 'Correo', 'Contrasena'],
   },
   {
     value: 'docente',
@@ -63,6 +65,7 @@ const initialForm = {
   role: 'estudiante',
   full_name: '',
   age: '',
+  grade_id: '',
   email: '',
   professions: '',
   birth_date: '',
@@ -81,6 +84,8 @@ const RegisterPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [grades, setGrades] = useState([]);
+  const [gradesLoading, setGradesLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
@@ -90,6 +95,33 @@ const RegisterPage = () => {
     [form.role],
   );
 
+  useEffect(() => {
+    let active = true;
+
+    const loadGrades = async () => {
+      setGradesLoading(true);
+      try {
+        const response = await axiosInstance.get('/grades/public');
+        if (active) {
+          setGrades(response.data || []);
+        }
+      } catch (err) {
+        if (active) {
+          setError('No se pudo cargar la lista de grados.');
+        }
+      } finally {
+        if (active) {
+          setGradesLoading(false);
+        }
+      }
+    };
+
+    loadGrades();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const handleChange = (event) => {
     const { name, value } = event.target;
     setForm((previous) => ({ ...previous, [name]: value }));
@@ -97,7 +129,11 @@ const RegisterPage = () => {
   };
 
   const handleRoleChange = (role) => {
-    setForm((previous) => ({ ...previous, role }));
+    setForm((previous) => ({
+      ...previous,
+      role,
+      grade_id: role === 'estudiante' ? previous.grade_id : '',
+    }));
     setError('');
   };
 
@@ -147,6 +183,11 @@ const RegisterPage = () => {
           setError('La edad del estudiante debe estar entre 3 y 120.');
           return false;
         }
+
+        if (!form.grade_id) {
+          setError('Selecciona el grado del estudiante.');
+          return false;
+        }
       }
     }
 
@@ -190,6 +231,7 @@ const RegisterPage = () => {
       payload.phone = form.phone.trim();
     } else {
       payload.age = Number(form.age);
+      payload.grade_id = Number(form.grade_id);
     }
 
     return payload;
@@ -319,13 +361,13 @@ const RegisterPage = () => {
                   {roleCards.map((role) => {
                     const selected = form.role === role.value;
                     return (
-                      <Grid item xs={12} md={6} key={role.value}>
+                      <Grid item xs={6} key={role.value}>
                         <Box
                           onClick={() => handleRoleChange(role.value)}
                           sx={{
                             height: '100%',
                             borderRadius: '24px',
-                            p: 3,
+                            p: { xs: 2, sm: 3 },
                             cursor: 'pointer',
                             border: `2px solid ${selected ? role.color : 'rgba(15,23,42,0.08)'}`,
                             background: selected ? role.background : '#fff',
@@ -346,7 +388,7 @@ const RegisterPage = () => {
                           <Typography variant="h6" fontWeight={800} sx={{ color: '#0f172a', mb: 1 }}>
                             {role.label}
                           </Typography>
-                          <Typography sx={{ color: 'text.secondary', lineHeight: 1.7, mb: 2 }}>
+                          <Typography sx={{ color: 'text.secondary', lineHeight: 1.6, mb: 2, fontSize: { xs: '0.92rem', sm: '1rem' } }}>
                             {role.description}
                           </Typography>
                           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -370,7 +412,7 @@ const RegisterPage = () => {
                 <Typography sx={{ textAlign: 'center', color: 'text.secondary', mb: 3 }}>
                   {isTeacher
                     ? 'Completa la informacion profesional y de identidad para validar el acceso docente.'
-                    : 'Solo pedimos nombre completo, edad, correo y luego tu contrasena.'}
+                    : 'Pedimos nombre completo, edad, grado, correo y luego tu contrasena.'}
                 </Typography>
 
                 <Grid container spacing={2}>
@@ -409,6 +451,37 @@ const RegisterPage = () => {
                           ),
                         }}
                       />
+                    </Grid>
+                  )}
+
+                  {!isTeacher && (
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        select
+                        fullWidth
+                        label="Grado"
+                        name="grade_id"
+                        value={form.grade_id}
+                        onChange={handleChange}
+                        disabled={gradesLoading}
+                        helperText={gradesLoading ? 'Cargando grados...' : 'Selecciona el grado del estudiante'}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <School color="primary" />
+                            </InputAdornment>
+                          ),
+                        }}
+                      >
+                        <MenuItem value="" disabled>
+                          Selecciona un grado
+                        </MenuItem>
+                        {grades.map((grade) => (
+                          <MenuItem key={grade.id} value={grade.id}>
+                            {grade.name}
+                          </MenuItem>
+                        ))}
+                      </TextField>
                     </Grid>
                   )}
 
@@ -535,11 +608,17 @@ const RegisterPage = () => {
                     <Chip label={selectedRole.label} sx={{ background: `${selectedRole.color}16`, color: selectedRole.color, fontWeight: 800 }} />
                     <Chip label={form.full_name || 'Nombre pendiente'} sx={{ background: 'rgba(15,23,42,0.05)', fontWeight: 700 }} />
                     <Chip label={form.email || 'Correo pendiente'} sx={{ background: 'rgba(15,23,42,0.05)', fontWeight: 700 }} />
+                    {!isTeacher && (
+                      <Chip
+                        label={grades.find((grade) => grade.id === Number(form.grade_id))?.name || 'Grado pendiente'}
+                        sx={{ background: 'rgba(15,23,42,0.05)', fontWeight: 700 }}
+                      />
+                    )}
                   </Box>
                   <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                     {isTeacher
                       ? 'Incluye profesiones, fecha de nacimiento, documento y celular.'
-                      : 'Incluye nombre completo, edad, correo y contrasena.'}
+                      : 'Incluye nombre completo, edad, grado, correo y contrasena.'}
                   </Typography>
                 </Paper>
 

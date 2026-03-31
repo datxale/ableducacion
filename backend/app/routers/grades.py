@@ -26,6 +26,11 @@ def _allowed_grade_ids_for_teacher(db: Session, teacher_id: int) -> Set[int]:
     return group_grade_ids | class_grade_ids
 
 
+@router.get("/public", response_model=List[GradeResponse])
+def list_public_grades(db: Session = Depends(get_db)):
+    return db.query(Grade).order_by(Grade.id).all()
+
+
 @router.get("/", response_model=List[GradeResponse])
 def list_grades(
     db: Session = Depends(get_db),

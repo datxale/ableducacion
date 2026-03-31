@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.middleware.auth import get_current_user, require_admin_or_docente
+from app.models.grade import Grade
 from app.models.user import User, UserRole
 from app.schemas.user import LoginRequest, PublicRegisterCreate, Token, UserPublic
 from app.services.auth import create_access_token, hash_password, verify_password
@@ -57,6 +58,14 @@ def register(user_data: PublicRegisterCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Ya existe un usuario con ese correo electronico",
         )
+
+    if user_data.role == UserRole.estudiante:
+        grade = db.query(Grade).filter(Grade.id == user_data.grade_id).first()
+        if not grade:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Grado no encontrado",
+            )
 
     new_user = User(
         email=user_data.email,

@@ -61,8 +61,11 @@ class UserCreate(UserBase):
 class PublicRegisterCreate(UserCreate):
     @model_validator(mode="after")
     def validate_registration_fields(self):
-        if self.role == UserRole.estudiante and self.age is None:
-            raise ValueError("La edad es obligatoria para estudiantes")
+        if self.role == UserRole.estudiante:
+            if self.age is None:
+                raise ValueError("La edad es obligatoria para estudiantes")
+            if self.grade_id is None:
+                raise ValueError("El grado es obligatorio para estudiantes")
 
         if self.role == UserRole.docente:
             missing_labels = []
