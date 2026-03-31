@@ -4,12 +4,15 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.academic_group import AcademicGroup
 from app.models.live_class import LiveClass
 from app.models.live_class_attendance import AttendanceStatus, LiveClassAttendance
 from app.models.grade import Grade
+from app.models.month import Month
 from app.models.notification import NotificationType
 from app.models.subject import Subject
 from app.schemas.live_class_attendance import LiveClassAttendanceResponse
@@ -61,6 +64,15 @@ def _ensure_live_class_access(live_class: LiveClass, current_user: User) -> None
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tiene acceso a esta clase.",
         )
+    if (
+        current_user.role == UserRole.estudiante
+        and live_class.group_id is not None
+        and current_user.group_id != live_class.group_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tiene acceso a las clases de otra seccion.",
+        )
 
 
 def _apply_google_meet_data(live_class: LiveClass, meeting_data: dict) -> None:
@@ -106,14 +118,101 @@ def _sync_recording_metadata(db: Session, live_class: LiveClass) -> LiveClass:
     return live_class
 
 
-def _apply_live_class_scope(query, current_user: User, grade_id: Optional[int], teacher_id: Optional[int]):
+def _resolve_live_class_month_id(
+    db: Session,
+    scheduled_at: datetime,
+    month_id: Optional[int],
+) -> Optional[int]:
+    if month_id is not None:
+        return month_id
+
+    month = db.query(Month).filter(Month.number == scheduled_at.month).first()
+    return month.id if month else None
+
+
+def _validate_live_class_metadata(
+    db: Session,
+    grade_id: int,
+    subject_id: int,
+    group_id: Optional[int],
+    month_id: Optional[int],
+    week_number: Optional[int],
+):
+    grade = db.query(Grade).filter(Grade.id == grade_id).first()
+    if not grade:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Grado no encontrado",
+        )
+
+    subject = db.query(Subject).filter(Subject.id == subject_id).first()
+    if not subject:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Asignatura no encontrada",
+        )
+    if subject.grade_id != grade_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La asignatura seleccionada no pertenece al grado indicado.",
+        )
+
+    if group_id is not None:
+        group = db.query(AcademicGroup).filter(AcademicGroup.id == group_id).first()
+        if not group:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Seccion no encontrada",
+            )
+        if group.grade_id != grade_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La seccion seleccionada no pertenece al grado indicado.",
+            )
+
+    if month_id is not None:
+        month = db.query(Month).filter(Month.id == month_id).first()
+        if not month:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Mes no encontrado",
+            )
+
+    if week_number is not None and week_number <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La semana debe ser mayor que cero.",
+        )
+
+    return grade, subject
+
+
+def _apply_live_class_scope(
+    query,
+    current_user: User,
+    grade_id: Optional[int],
+    teacher_id: Optional[int],
+    group_id: Optional[int],
+):
     if current_user.role == UserRole.estudiante:
         if grade_id is not None and current_user.grade_id != grade_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="No tiene acceso a las clases de otro grado.",
             )
-        return query.filter(LiveClass.grade_id == current_user.grade_id)
+        if group_id is not None and current_user.group_id != group_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tiene acceso a las clases de otra seccion.",
+            )
+        scoped_query = query.filter(LiveClass.grade_id == current_user.grade_id)
+        if current_user.group_id is not None:
+            scoped_query = scoped_query.filter(
+                or_(LiveClass.group_id.is_(None), LiveClass.group_id == current_user.group_id)
+            )
+        else:
+            scoped_query = scoped_query.filter(LiveClass.group_id.is_(None))
+        return scoped_query
 
     if current_user.role == UserRole.docente:
         if teacher_id is not None and teacher_id != current_user.id:
@@ -224,6 +323,9 @@ def stream_live_class_recording(
 @router.get("/", response_model=List[LiveClassResponse])
 def list_live_classes(
     grade_id: Optional[int] = Query(None),
+    group_id: Optional[int] = Query(None),
+    month_id: Optional[int] = Query(None),
+    week_number: Optional[int] = Query(None, ge=1),
     subject_id: Optional[int] = Query(None),
     teacher_id: Optional[int] = Query(None),
     from_date: Optional[datetime] = Query(None),
@@ -234,9 +336,15 @@ def list_live_classes(
     current_user: User = Depends(get_current_user),
 ):
     query = db.query(LiveClass)
-    query = _apply_live_class_scope(query, current_user, grade_id, teacher_id)
+    query = _apply_live_class_scope(query, current_user, grade_id, teacher_id, group_id)
     if grade_id is not None:
         query = query.filter(LiveClass.grade_id == grade_id)
+    if group_id is not None:
+        query = query.filter(LiveClass.group_id == group_id)
+    if month_id is not None:
+        query = query.filter(LiveClass.month_id == month_id)
+    if week_number is not None:
+        query = query.filter(LiveClass.week_number == week_number)
     if subject_id is not None:
         query = query.filter(LiveClass.subject_id == subject_id)
     if teacher_id is not None:
@@ -279,25 +387,24 @@ def create_live_class(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_docente),
 ):
-    grade = db.query(Grade).filter(Grade.id == class_data.grade_id).first()
-    if not grade:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Grado no encontrado",
-        )
-    subject = db.query(Subject).filter(Subject.id == class_data.subject_id).first()
-    if not subject:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Asignatura no encontrada",
-        )
     if class_data.meeting_provider != "google_meet" and not class_data.meeting_url:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Las clases manuales o Zoom requieren una URL de reunion.",
         )
 
-    live_class = LiveClass(**class_data.model_dump(), teacher_id=current_user.id)
+    payload = class_data.model_dump()
+    payload["month_id"] = _resolve_live_class_month_id(db, class_data.scheduled_at, payload.get("month_id"))
+    grade, subject = _validate_live_class_metadata(
+        db,
+        payload["grade_id"],
+        payload["subject_id"],
+        payload.get("group_id"),
+        payload.get("month_id"),
+        payload.get("week_number"),
+    )
+
+    live_class = LiveClass(**payload, teacher_id=current_user.id)
     db.add(live_class)
     db.flush()
 
@@ -320,6 +427,7 @@ def create_live_class(
         notify_grade_students(
             db,
             grade_id=live_class.grade_id,
+            group_id=live_class.group_id,
             title="Nueva clase programada",
             message=f"Tienes una clase en vivo: {live_class.title}.",
             notification_type=NotificationType.live_class,
@@ -359,26 +467,23 @@ def update_live_class(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tiene permisos para actualizar esta clase",
         )
-    if class_data.grade_id is not None:
-        grade = db.query(Grade).filter(Grade.id == class_data.grade_id).first()
-        if not grade:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Grado no encontrado",
-            )
-    else:
-        grade = db.query(Grade).filter(Grade.id == live_class.grade_id).first()
-    if class_data.subject_id is not None:
-        subject = db.query(Subject).filter(Subject.id == class_data.subject_id).first()
-        if not subject:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Asignatura no encontrada",
-            )
-    else:
-        subject = db.query(Subject).filter(Subject.id == live_class.subject_id).first()
 
     update_data = class_data.model_dump(exclude_unset=True)
+    next_scheduled_at = update_data.get("scheduled_at", live_class.scheduled_at)
+    next_month_id = _resolve_live_class_month_id(
+        db,
+        next_scheduled_at,
+        update_data.get("month_id", live_class.month_id),
+    )
+    grade, subject = _validate_live_class_metadata(
+        db,
+        update_data.get("grade_id", live_class.grade_id),
+        update_data.get("subject_id", live_class.subject_id),
+        update_data.get("group_id", live_class.group_id),
+        next_month_id,
+        update_data.get("week_number", live_class.week_number),
+    )
+    update_data["month_id"] = next_month_id
     next_meeting_provider = update_data.get("meeting_provider", live_class.meeting_provider)
     next_meeting_url = update_data.get("meeting_url", live_class.meeting_url)
 
@@ -488,6 +593,11 @@ def mark_attendance(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tiene acceso a esta clase.",
+        )
+    if live_class.group_id is not None and current_user.group_id != live_class.group_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tiene acceso a las clases de otra seccion.",
         )
 
     attendance = (

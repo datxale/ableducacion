@@ -54,11 +54,23 @@ const emptyForm = {
   description: '',
   class_type: 'regular',
   grade_id: '',
+  group_id: '',
+  month_id: '',
+  week_number: '',
   subject_id: '',
   scheduled_at: '',
   meeting_provider: 'manual',
   meeting_url: '',
 };
+
+const emptyFilters = {
+  grade_id: '',
+  group_id: '',
+  month_id: '',
+  week_number: '',
+};
+
+const DEFAULT_WEEK_OPTIONS = [1, 2, 3, 4, 5, 6];
 
 const ManageClasses = () => {
   const navigate = useNavigate();
@@ -66,6 +78,8 @@ const ManageClasses = () => {
   const { user, isAdmin, isDocente } = useAuth();
   const [classes, setClasses] = useState([]);
   const [grades, setGrades] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [months, setMonths] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -75,6 +89,7 @@ const ManageClasses = () => {
   const [selectedClass, setSelectedClass] = useState(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [filters, setFilters] = useState(emptyFilters);
   const [meetingConfig, setMeetingConfig] = useState({ google_meet_enabled: false });
   const sectionPath = location.pathname.startsWith('/admin') && isAdmin ? '/admin' : '/dashboard';
   const sectionLabel = location.pathname.startsWith('/admin') && isAdmin ? 'Admin' : 'Docencia';
@@ -82,16 +97,38 @@ const ManageClasses = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [classesRes, gradesRes, subjectsRes, configRes] = await Promise.all([
+      const classParams = {};
+
+      if (isDocente && user?.id) {
+        classParams.teacher_id = user.id;
+      }
+      if (filters.grade_id) {
+        classParams.grade_id = Number(filters.grade_id);
+      }
+      if (filters.group_id) {
+        classParams.group_id = Number(filters.group_id);
+      }
+      if (filters.month_id) {
+        classParams.month_id = Number(filters.month_id);
+      }
+      if (filters.week_number) {
+        classParams.week_number = Number(filters.week_number);
+      }
+
+      const [classesRes, gradesRes, groupsRes, monthsRes, subjectsRes, configRes] = await Promise.all([
         axiosInstance.get('/live-classes/', {
-          params: isDocente && user?.id ? { teacher_id: user.id } : undefined,
+          params: Object.keys(classParams).length ? classParams : undefined,
         }),
         axiosInstance.get('/grades/'),
+        axiosInstance.get('/groups/'),
+        axiosInstance.get('/months/'),
         axiosInstance.get('/subjects/'),
         axiosInstance.get('/live-classes/config/status').catch(() => ({ data: { google_meet_enabled: false } })),
       ]);
       setClasses(classesRes.data?.results || classesRes.data || []);
       setGrades(gradesRes.data?.results || gradesRes.data || []);
+      setGroups(groupsRes.data?.results || groupsRes.data || []);
+      setMonths(monthsRes.data?.results || monthsRes.data || []);
       setSubjects(subjectsRes.data?.results || subjectsRes.data || []);
       setMeetingConfig(configRes.data || { google_meet_enabled: false });
     } catch (err) {
@@ -99,7 +136,7 @@ const ManageClasses = () => {
     } finally {
       setLoading(false);
     }
-  }, [isDocente, user?.id]);
+  }, [filters.grade_id, filters.group_id, filters.month_id, filters.week_number, isDocente, user?.id]);
 
   useEffect(() => {
     fetchData();
@@ -115,9 +152,44 @@ const ManageClasses = () => {
     [subjects]
   );
 
+  const monthsById = useMemo(
+    () => Object.fromEntries(months.map((month) => [month.id, month])),
+    [months]
+  );
+
   const availableSubjects = subjects.filter(
     (subject) => !form.grade_id || subject.grade_id === Number(form.grade_id)
   );
+
+  const availableGroups = groups.filter(
+    (group) => !form.grade_id || group.grade_id === Number(form.grade_id)
+  );
+
+  const filterGroups = groups.filter(
+    (group) => !filters.grade_id || group.grade_id === Number(filters.grade_id)
+  );
+
+  const weekOptions = useMemo(() => {
+    const fromClasses = new Set(
+      classes
+        .map((liveClass) => Number(liveClass.week_number))
+        .filter((value) => Number.isInteger(value) && value > 0)
+    );
+    DEFAULT_WEEK_OPTIONS.forEach((value) => fromClasses.add(value));
+    return [...fromClasses].sort((left, right) => left - right);
+  }, [classes]);
+
+  useEffect(() => {
+    if (form.group_id && !availableGroups.some((group) => group.id === Number(form.group_id))) {
+      setForm((current) => ({ ...current, group_id: '' }));
+    }
+  }, [availableGroups, form.group_id]);
+
+  useEffect(() => {
+    if (filters.group_id && !filterGroups.some((group) => group.id === Number(filters.group_id))) {
+      setFilters((current) => ({ ...current, group_id: '' }));
+    }
+  }, [filterGroups, filters.group_id]);
 
   const openCreateDialog = () => {
     setSelectedClass(null);
@@ -132,6 +204,9 @@ const ManageClasses = () => {
       description: liveClass.description || '',
       class_type: liveClass.class_type || 'regular',
       grade_id: liveClass.grade_id || '',
+      group_id: liveClass.group_id || '',
+      month_id: liveClass.month_id || '',
+      week_number: liveClass.week_number || '',
       subject_id: liveClass.subject_id || '',
       scheduled_at: liveClass.scheduled_at
         ? liveClass.scheduled_at.slice(0, 16)
@@ -140,6 +215,16 @@ const ManageClasses = () => {
       meeting_url: liveClass.meeting_url || '',
     });
     setDialogOpen(true);
+  };
+
+  const inferMonthIdFromDate = (value) => {
+    if (!value) return '';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return '';
+    }
+    const matchingMonth = months.find((month) => month.number === parsed.getMonth() + 1);
+    return matchingMonth?.id || '';
   };
 
   const handleSave = async () => {
@@ -161,6 +246,9 @@ const ManageClasses = () => {
       description: form.description.trim() || null,
       class_type: form.class_type,
       grade_id: Number(form.grade_id),
+      group_id: form.group_id ? Number(form.group_id) : null,
+      month_id: form.month_id ? Number(form.month_id) : null,
+      week_number: form.week_number ? Number(form.week_number) : null,
       subject_id: Number(form.subject_id),
       scheduled_at: new Date(form.scheduled_at).toISOString(),
       meeting_provider: form.meeting_provider,
@@ -265,6 +353,93 @@ const ManageClasses = () => {
         {error && <Alert severity="error" sx={{ mb: 2, borderRadius: '12px' }} onClose={() => setError('')}>{error}</Alert>}
         {success && <Alert severity="success" sx={{ mb: 2, borderRadius: '12px' }} onClose={() => setSuccess('')}>{success}</Alert>}
 
+        <Paper sx={{ p: 2.5, mb: 2.5, borderRadius: '20px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+            <Box>
+              <Typography variant="h6" fontWeight={800}>
+                Filtros de agenda
+              </Typography>
+              <Typography color="text.secondary">
+                Filtra las clases por grado, seccion, mes y semana.
+              </Typography>
+            </Box>
+            <Button
+              variant="outlined"
+              onClick={() => setFilters(emptyFilters)}
+              sx={{ boxShadow: 'none', '&:hover': { boxShadow: 'none', transform: 'none' } }}
+            >
+              Limpiar filtros
+            </Button>
+          </Box>
+
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth>
+                <InputLabel>Grado</InputLabel>
+                <Select
+                  value={filters.grade_id}
+                  onChange={(event) => setFilters((current) => ({
+                    ...current,
+                    grade_id: event.target.value,
+                    group_id: '',
+                  }))}
+                  label="Grado"
+                >
+                  <MenuItem value="">Todos</MenuItem>
+                  {grades.map((grade) => (
+                    <MenuItem key={grade.id} value={grade.id}>{grade.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth>
+                <InputLabel>Seccion</InputLabel>
+                <Select
+                  value={filters.group_id}
+                  onChange={(event) => setFilters((current) => ({ ...current, group_id: event.target.value }))}
+                  label="Seccion"
+                >
+                  <MenuItem value="">Todas</MenuItem>
+                  {filterGroups.map((group) => (
+                    <MenuItem key={group.id} value={group.id}>{group.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth>
+                <InputLabel>Mes</InputLabel>
+                <Select
+                  value={filters.month_id}
+                  onChange={(event) => setFilters((current) => ({ ...current, month_id: event.target.value }))}
+                  label="Mes"
+                >
+                  <MenuItem value="">Todos</MenuItem>
+                  {months.map((month) => (
+                    <MenuItem key={month.id} value={month.id}>{month.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth>
+                <InputLabel>Semana</InputLabel>
+                <Select
+                  value={filters.week_number}
+                  onChange={(event) => setFilters((current) => ({ ...current, week_number: event.target.value }))}
+                  label="Semana"
+                >
+                  <MenuItem value="">Todas</MenuItem>
+                  {weekOptions.map((weekNumber) => (
+                    <MenuItem key={weekNumber} value={weekNumber}>{`Semana ${weekNumber}`}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+        </Paper>
+
         <Paper sx={{ borderRadius: '20px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.07)' }}>
           <TableContainer>
             <Table>
@@ -336,6 +511,29 @@ const ManageClasses = () => {
                                 fontWeight: 700,
                               }}
                             />
+                            <Box sx={{ display: 'flex', gap: 0.75, mt: 0.75, flexWrap: 'wrap' }}>
+                              {liveClass.group?.name && (
+                                <Chip
+                                  label={`Seccion ${liveClass.group.name}`}
+                                  size="small"
+                                  sx={{ bgcolor: '#f3e5f5', color: '#7b1fa2', fontWeight: 700 }}
+                                />
+                              )}
+                              {(liveClass.month?.name || monthsById[liveClass.month_id]?.name) && (
+                                <Chip
+                                  label={liveClass.month?.name || monthsById[liveClass.month_id]?.name}
+                                  size="small"
+                                  sx={{ bgcolor: '#fff8e1', color: '#f57f17', fontWeight: 700 }}
+                                />
+                              )}
+                              {liveClass.week_number && (
+                                <Chip
+                                  label={`Semana ${liveClass.week_number}`}
+                                  size="small"
+                                  sx={{ bgcolor: '#e8f5e9', color: '#2e7d32', fontWeight: 700 }}
+                                />
+                              )}
+                            </Box>
                           </Box>
                         </Box>
                       </TableCell>
@@ -445,11 +643,31 @@ const ManageClasses = () => {
                 <InputLabel>Grado</InputLabel>
                 <Select
                   value={form.grade_id}
-                  onChange={(event) => setForm({ ...form, grade_id: event.target.value, subject_id: '' })}
+                  onChange={(event) => setForm({
+                    ...form,
+                    grade_id: event.target.value,
+                    group_id: '',
+                    subject_id: '',
+                  })}
                   label="Grado"
                 >
                   {grades.map((grade) => (
                     <MenuItem key={grade.id} value={grade.id}>{grade.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <FormControl fullWidth>
+                <InputLabel>Seccion</InputLabel>
+                <Select
+                  value={form.group_id}
+                  onChange={(event) => setForm({ ...form, group_id: event.target.value })}
+                  label="Seccion"
+                >
+                  <MenuItem value="">Todas</MenuItem>
+                  {availableGroups.map((group) => (
+                    <MenuItem key={group.id} value={group.id}>{group.name}</MenuItem>
                   ))}
                 </Select>
               </FormControl>
@@ -482,13 +700,49 @@ const ManageClasses = () => {
                 </Select>
               </FormControl>
             </Grid>
+            <Grid item xs={12} sm={3}>
+              <FormControl fullWidth>
+                <InputLabel>Mes</InputLabel>
+                <Select
+                  value={form.month_id}
+                  onChange={(event) => setForm({ ...form, month_id: event.target.value })}
+                  label="Mes"
+                >
+                  {months.map((month) => (
+                    <MenuItem key={month.id} value={month.id}>{month.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <FormControl fullWidth>
+                <InputLabel>Semana</InputLabel>
+                <Select
+                  value={form.week_number}
+                  onChange={(event) => setForm({ ...form, week_number: event.target.value })}
+                  label="Semana"
+                >
+                  <MenuItem value="">Sin semana</MenuItem>
+                  {weekOptions.map((weekNumber) => (
+                    <MenuItem key={weekNumber} value={weekNumber}>{`Semana ${weekNumber}`}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Fecha y hora"
                 type="datetime-local"
                 value={form.scheduled_at}
-                onChange={(event) => setForm({ ...form, scheduled_at: event.target.value })}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  setForm((current) => ({
+                    ...current,
+                    scheduled_at: nextValue,
+                    month_id: current.month_id || inferMonthIdFromDate(nextValue),
+                  }));
+                }}
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>

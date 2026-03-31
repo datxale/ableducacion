@@ -14,9 +14,13 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  FormControl,
   Grid,
+  InputLabel,
   Link,
   Paper,
+  MenuItem,
+  Select,
   Tab,
   Tabs,
   Typography,
@@ -43,14 +47,22 @@ import {
   getLiveClassDate,
 } from '../../utils/liveClasses';
 
+const DEFAULT_WEEK_OPTIONS = [1, 2, 3, 4, 5, 6];
+
 const LiveClassesPage = () => {
   const navigate = useNavigate();
   const { user, isAdmin, isDocente, isEstudiante } = useAuth();
 
   const [classes, setClasses] = useState([]);
+  const [months, setMonths] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [tabValue, setTabValue] = useState(0);
+  const [filters, setFilters] = useState({
+    group_id: '',
+    month_id: '',
+    week_number: '',
+  });
   const [refreshKey, setRefreshKey] = useState(0);
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
@@ -76,8 +88,12 @@ const LiveClassesPage = () => {
           params.teacher_id = user.id;
         }
 
-        const res = await axiosInstance.get('/live-classes/', { params });
-        setClasses(res.data?.results || res.data || []);
+        const [classesRes, monthsRes] = await Promise.all([
+          axiosInstance.get('/live-classes/', { params }),
+          axiosInstance.get('/months/'),
+        ]);
+        setClasses(classesRes.data?.results || classesRes.data || []);
+        setMonths(monthsRes.data?.results || monthsRes.data || []);
       } catch (err) {
         setError('Error al cargar las clases.');
         console.error(err);
@@ -99,6 +115,26 @@ const LiveClassesPage = () => {
 
   const now = new Date();
   const managementPath = isAdmin ? '/admin/classes' : '/teaching/classes';
+  const monthsById = Object.fromEntries(months.map((month) => [month.id, month]));
+  const sectionOptions = Array.from(
+    classes.reduce((map, liveClass) => {
+      if (liveClass.group_id) {
+        map.set(liveClass.group_id, {
+          id: liveClass.group_id,
+          name: liveClass.group?.name || `Seccion ${liveClass.group_id}`,
+        });
+      }
+      return map;
+    }, new Map()).values()
+  ).sort((left, right) => left.name.localeCompare(right.name, 'es'));
+  const weekOptions = Array.from(
+    new Set([
+      ...DEFAULT_WEEK_OPTIONS,
+      ...classes
+        .map((liveClass) => Number(liveClass.week_number))
+        .filter((value) => Number.isInteger(value) && value > 0),
+    ])
+  ).sort((left, right) => left - right);
 
   const upcomingClasses = classes.filter((liveClass) => {
     const scheduledAt = getLiveClassDate(liveClass);
@@ -130,7 +166,18 @@ const LiveClassesPage = () => {
     return diffMinutes <= 60;
   };
 
-  const filteredClasses = getFilteredClasses();
+  const filteredClasses = getFilteredClasses().filter((liveClass) => {
+    if (filters.group_id && Number(liveClass.group_id) !== Number(filters.group_id)) {
+      return false;
+    }
+    if (filters.month_id && Number(liveClass.month_id) !== Number(filters.month_id)) {
+      return false;
+    }
+    if (filters.week_number && Number(liveClass.week_number) !== Number(filters.week_number)) {
+      return false;
+    }
+    return true;
+  });
 
   const handleJoinClass = async (liveClass) => {
     try {
@@ -345,6 +392,81 @@ const LiveClassesPage = () => {
           ))}
         </Grid>
 
+        <Paper
+          sx={{
+            p: 2.5,
+            mb: 3,
+            borderRadius: '20px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+          }}
+        >
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+            <Box>
+              <Typography variant="h6" fontWeight={800}>
+                Filtros de clases
+              </Typography>
+              <Typography color="text.secondary">
+                Revisa las sesiones por seccion, mes y semana.
+              </Typography>
+            </Box>
+            <Button
+              variant="outlined"
+              onClick={() => setFilters({ group_id: '', month_id: '', week_number: '' })}
+              sx={{ boxShadow: 'none', '&:hover': { boxShadow: 'none', transform: 'none' } }}
+            >
+              Limpiar filtros
+            </Button>
+          </Box>
+
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={4}>
+              <FormControl fullWidth>
+                <InputLabel>Seccion</InputLabel>
+                <Select
+                  value={filters.group_id}
+                  onChange={(event) => setFilters((current) => ({ ...current, group_id: event.target.value }))}
+                  label="Seccion"
+                >
+                  <MenuItem value="">Todas</MenuItem>
+                  {sectionOptions.map((section) => (
+                    <MenuItem key={section.id} value={section.id}>{section.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <FormControl fullWidth>
+                <InputLabel>Mes</InputLabel>
+                <Select
+                  value={filters.month_id}
+                  onChange={(event) => setFilters((current) => ({ ...current, month_id: event.target.value }))}
+                  label="Mes"
+                >
+                  <MenuItem value="">Todos</MenuItem>
+                  {months.map((month) => (
+                    <MenuItem key={month.id} value={month.id}>{month.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <FormControl fullWidth>
+                <InputLabel>Semana</InputLabel>
+                <Select
+                  value={filters.week_number}
+                  onChange={(event) => setFilters((current) => ({ ...current, week_number: event.target.value }))}
+                  label="Semana"
+                >
+                  <MenuItem value="">Todas</MenuItem>
+                  {weekOptions.map((weekNumber) => (
+                    <MenuItem key={weekNumber} value={weekNumber}>{`Semana ${weekNumber}`}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+        </Paper>
+
         <Box
           sx={{
             background: '#fff',
@@ -481,6 +603,45 @@ const LiveClassesPage = () => {
                                 sx={{
                                   bgcolor: recordingStatus.bg,
                                   color: recordingStatus.color,
+                                  fontWeight: 700,
+                                  fontSize: '0.65rem',
+                                  height: 20,
+                                }}
+                              />
+                            )}
+                            {liveClass.group?.name && (
+                              <Chip
+                                label={`Seccion ${liveClass.group.name}`}
+                                size="small"
+                                sx={{
+                                  bgcolor: '#f3e5f5',
+                                  color: '#7b1fa2',
+                                  fontWeight: 700,
+                                  fontSize: '0.65rem',
+                                  height: 20,
+                                }}
+                              />
+                            )}
+                            {(liveClass.month?.name || monthsById[liveClass.month_id]?.name) && (
+                              <Chip
+                                label={liveClass.month?.name || monthsById[liveClass.month_id]?.name}
+                                size="small"
+                                sx={{
+                                  bgcolor: '#fff8e1',
+                                  color: '#f57f17',
+                                  fontWeight: 700,
+                                  fontSize: '0.65rem',
+                                  height: 20,
+                                }}
+                              />
+                            )}
+                            {liveClass.week_number && (
+                              <Chip
+                                label={`Semana ${liveClass.week_number}`}
+                                size="small"
+                                sx={{
+                                  bgcolor: '#e8f5e9',
+                                  color: '#2e7d32',
                                   fontWeight: 700,
                                   fontSize: '0.65rem',
                                   height: 20,

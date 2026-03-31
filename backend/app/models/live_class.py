@@ -29,6 +29,9 @@ class LiveClass(Base):
     recording_ended_at = Column(DateTime(timezone=True), nullable=True)
     recording_synced_at = Column(DateTime(timezone=True), nullable=True)
     grade_id = Column(Integer, ForeignKey("grades.id"), nullable=False)
+    group_id = Column(Integer, ForeignKey("academic_groups.id"), nullable=True)
+    month_id = Column(Integer, ForeignKey("months.id"), nullable=True)
+    week_number = Column(Integer, nullable=True)
     subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=False)
     scheduled_at = Column(DateTime(timezone=True), nullable=False)
     teacher_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -38,6 +41,8 @@ class LiveClass(Base):
 
     # Relationships
     grade = relationship("Grade", back_populates="live_classes")
+    group = relationship("AcademicGroup", foreign_keys=[group_id])
+    month = relationship("Month", foreign_keys=[month_id])
     subject = relationship("Subject", back_populates="live_classes")
     teacher = relationship("User", back_populates="live_classes_taught")
     attendance_records = relationship("LiveClassAttendance", back_populates="live_class")

@@ -143,6 +143,30 @@ def apply_safe_schema_updates():
         connection.execute(
             text(
                 """
+                ALTER TABLE live_classes
+                ADD COLUMN IF NOT EXISTS group_id INTEGER
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                ALTER TABLE live_classes
+                ADD COLUMN IF NOT EXISTS month_id INTEGER
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                ALTER TABLE live_classes
+                ADD COLUMN IF NOT EXISTS week_number INTEGER
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
                 ALTER TABLE activities
                 ADD COLUMN IF NOT EXISTS learning_format VARCHAR(20) NOT NULL DEFAULT 'material'
                 """
