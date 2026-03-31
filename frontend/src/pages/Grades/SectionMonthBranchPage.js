@@ -65,7 +65,6 @@ const SectionMonthBranchPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAdmin, isDocente } = useAuth();
   const monthNumber = Number(month);
-  const canManageWeeks = isAdmin || isDocente;
 
   const [grade, setGrade] = useState(null);
   const [group, setGroup] = useState(null);
@@ -80,6 +79,7 @@ const SectionMonthBranchPage = () => {
   const [success, setSuccess] = useState('');
   const [weekDialogOpen, setWeekDialogOpen] = useState(false);
   const [weekNumber, setWeekNumber] = useState('');
+  const canManageWeeks = !!group && (isAdmin || isDocente);
 
   const requestedView = searchParams.get('view') === 'activities' ? 'activities' : 'planning';
   const [activeView, setActiveView] = useState(requestedView);
@@ -170,7 +170,17 @@ const SectionMonthBranchPage = () => {
       setRawWeeks(relevantWeeks);
       setWeekBranches(normalizedWeeks);
     } catch (err) {
-      setError('No se pudo cargar la rama del mes seleccionado.');
+      setGroup(null);
+      setMonthRecord(null);
+      setSubjects([]);
+      setPlanningItems([]);
+      setRawWeeks([]);
+      setWeekBranches([]);
+      setError(
+        err.response?.status === 403
+          ? 'No tienes permisos para acceder a esta seccion.'
+          : 'No se pudo cargar la rama del mes seleccionado.'
+      );
     } finally {
       setLoading(false);
     }
@@ -289,6 +299,74 @@ const SectionMonthBranchPage = () => {
   }
 
   const monthLabel = MONTHS[monthNumber - 1] || `Mes ${month}`;
+  const hasScopedAccess = Boolean(group && monthRecord);
+
+  if (!hasScopedAccess) {
+    return (
+      <Box sx={{ background: '#f5f7fa', minHeight: '100vh' }}>
+        <Box
+          sx={{
+            background: 'linear-gradient(135deg, #1565c0 0%, #42a5f5 100%)',
+            py: 6,
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
+            <Breadcrumbs sx={{ mb: 2 }} separator=">">
+              <Link
+                component="button"
+                onClick={() => navigate('/dashboard')}
+                sx={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', '&:hover': { color: '#fff' } }}
+              >
+                <Home sx={{ fontSize: '1rem', mr: 0.5, verticalAlign: 'middle' }} />
+                Dashboard
+              </Link>
+              <Link
+                component="button"
+                onClick={() => navigate('/grades')}
+                sx={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', '&:hover': { color: '#fff' } }}
+              >
+                Grados
+              </Link>
+              <Typography sx={{ color: '#fff', fontWeight: 700 }}>
+                {grade?.name || `Grado ${gradeId}`} - {monthLabel}
+              </Typography>
+            </Breadcrumbs>
+
+            <Typography variant="h3" fontWeight={800} sx={{ color: '#fff', lineHeight: 1 }}>
+              Acceso restringido
+            </Typography>
+            <Typography sx={{ color: 'rgba(255,255,255,0.9)', mt: 1 }}>
+              Esta rama mensual no esta disponible para tu perfil actual.
+            </Typography>
+          </Container>
+        </Box>
+
+        <Container maxWidth="lg" sx={{ py: 5 }}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 3, borderRadius: '16px' }} onClose={() => setError('')}>
+              {error}
+            </Alert>
+          )}
+
+          <Paper sx={{ p: 4, borderRadius: '24px', textAlign: 'center', boxShadow: '0 10px 32px rgba(15, 23, 42, 0.08)' }}>
+            <Typography variant="h6" fontWeight={800} sx={{ mb: 1.5 }}>
+              No se puede abrir esta seccion
+            </Typography>
+            <Typography color="text.secondary" sx={{ mb: 3 }}>
+              Vuelve al grado para entrar solo a las secciones que tienes asignadas.
+            </Typography>
+            <Button variant="contained" onClick={() => navigate(`/grades/${gradeId}`)}>
+              Volver al grado
+            </Button>
+          </Paper>
+        </Container>
+
+        <Footer />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ background: '#f5f7fa', minHeight: '100vh' }}>
