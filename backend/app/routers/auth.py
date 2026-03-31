@@ -10,7 +10,7 @@ from app.config import settings
 from app.database import get_db
 from app.middleware.auth import get_current_user, require_admin_or_docente
 from app.models.user import User, UserRole
-from app.schemas.user import LoginRequest, Token, UserCreate, UserPublic
+from app.schemas.user import LoginRequest, PublicRegisterCreate, Token, UserPublic
 from app.services.auth import create_access_token, hash_password, verify_password
 from app.services.presence import get_presence_for_users, mark_user_online
 
@@ -50,7 +50,7 @@ def _parse_user_ids(user_ids_raw: str) -> List[int]:
 
 
 @router.post("/register", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
-def register(user_data: UserCreate, db: Session = Depends(get_db)):
+def register(user_data: PublicRegisterCreate, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.email == user_data.email).first()
     if existing:
         raise HTTPException(
@@ -63,6 +63,10 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         password_hash=hash_password(user_data.password),
         full_name=user_data.full_name,
         role=user_data.role,
+        age=user_data.age,
+        birth_date=user_data.birth_date,
+        document_id=user_data.document_id,
+        professions=user_data.professions,
         phone=user_data.phone,
         whatsapp=user_data.whatsapp,
         grade_id=user_data.grade_id,

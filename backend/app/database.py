@@ -167,6 +167,38 @@ def apply_safe_schema_updates():
             text(
                 """
                 ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS age INTEGER
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS birth_date DATE
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS document_id VARCHAR(40)
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS professions TEXT
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                ALTER TABLE users
                 ADD COLUMN IF NOT EXISTS group_id INTEGER
                 """
             )

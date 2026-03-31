@@ -5,6 +5,26 @@ const AuthContext = createContext(null);
 const IMPERSONATION_ORIGINAL_TOKEN_KEY = 'impersonation_original_access_token';
 const IMPERSONATION_ORIGINAL_USER_KEY = 'impersonation_original_user';
 
+const getErrorMessage = (err, fallback) => {
+  const detail = err.response?.data?.detail;
+
+  if (typeof detail === 'string' && detail.trim()) {
+    return detail;
+  }
+
+  if (Array.isArray(detail) && detail.length > 0) {
+    const firstItem = detail[0];
+    if (typeof firstItem === 'string' && firstItem.trim()) {
+      return firstItem;
+    }
+    if (firstItem?.msg) {
+      return String(firstItem.msg).replace(/^Value error,\s*/i, '');
+    }
+  }
+
+  return fallback;
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -73,7 +93,7 @@ export const AuthProvider = ({ children }) => {
       applySession(access_token, userData);
       return { success: true, user: userData };
     } catch (err) {
-      const msg = err.response?.data?.detail || 'Credenciales incorrectas. Intenta de nuevo.';
+      const msg = getErrorMessage(err, 'Credenciales incorrectas. Intenta de nuevo.');
       setError(msg);
       return { success: false, error: msg };
     }
@@ -85,7 +105,7 @@ export const AuthProvider = ({ children }) => {
       const response = await axiosInstance.post('/auth/register', formData);
       return { success: true, data: response.data };
     } catch (err) {
-      const msg = err.response?.data?.detail || 'Error al registrarse. Intenta de nuevo.';
+      const msg = getErrorMessage(err, 'Error al registrarse. Intenta de nuevo.');
       setError(msg);
       return { success: false, error: msg };
     }
@@ -116,7 +136,7 @@ export const AuthProvider = ({ children }) => {
       setIsImpersonating(true);
       return { success: true, user: userData };
     } catch (err) {
-      const msg = err.response?.data?.detail || 'No se pudo iniciar impersonaci\u00f3n.';
+      const msg = getErrorMessage(err, 'No se pudo iniciar impersonaci\u00f3n.');
       setError(msg);
       return { success: false, error: msg };
     }

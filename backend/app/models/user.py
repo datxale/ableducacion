@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Date, ForeignKey, Enum, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -19,6 +19,10 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     full_name = Column(String(255), nullable=False)
     role = Column(Enum(UserRole), nullable=False, default=UserRole.estudiante)
+    age = Column(Integer, nullable=True)
+    birth_date = Column(Date, nullable=True)
+    document_id = Column(String(40), nullable=True)
+    professions = Column(Text, nullable=True)
     phone = Column(String(20), nullable=True)
     whatsapp = Column(String(20), nullable=True)
     grade_id = Column(Integer, ForeignKey("grades.id"), nullable=True)
