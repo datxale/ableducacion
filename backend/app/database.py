@@ -319,6 +319,22 @@ def apply_safe_schema_updates():
         connection.execute(
             text(
                 """
+                ALTER TABLE news_posts
+                ADD COLUMN IF NOT EXISTS cover_media_type VARCHAR(20) NOT NULL DEFAULT 'image'
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                ALTER TABLE news_posts
+                ADD COLUMN IF NOT EXISTS content_blocks_json TEXT
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
                 ALTER TABLE academic_groups
                 ALTER COLUMN name TYPE VARCHAR(120)
                 """

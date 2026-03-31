@@ -3,8 +3,10 @@ import { Box, Button, Chip, Container, Dialog, DialogContent, DialogTitle, Grid,
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import axiosInstance from '../../api/axios';
+import { NewsContentBlocks, NewsCoverMedia } from '../../components/News/NewsRichContent';
 import Footer from '../../components/Layout/Footer';
 import { buildDefaultHeroSlides, landingPageDefaults, mergeLandingPageConfig } from '../../constants/landingPageDefaults';
+import { detectNewsMediaKind } from '../../utils/news';
 
 const stepVisuals = [
   { number: 1, color: '#4ECDC4', label: '01' },
@@ -21,6 +23,8 @@ const placeholderNews = [
     summary: 'Aqui se publicaran novedades, actividades destacadas y anuncios importantes del programa.',
     content: '',
     image_url: '',
+    cover_media_type: 'image',
+    content_blocks: [],
     published_at: new Date().toISOString(),
   },
   {
@@ -29,6 +33,8 @@ const placeholderNews = [
     summary: 'Aqui podras destacar logros, eventos y anuncios importantes para docentes y familias.',
     content: '',
     image_url: '',
+    cover_media_type: 'image',
+    content_blocks: [],
     published_at: new Date().toISOString(),
   },
   {
@@ -37,6 +43,8 @@ const placeholderNews = [
     summary: 'Esta seccion mostrara siempre las noticias mas recientes y relevantes para la comunidad educativa.',
     content: '',
     image_url: '',
+    cover_media_type: 'image',
+    content_blocks: [],
     published_at: new Date().toISOString(),
   },
 ];
@@ -49,8 +57,6 @@ const formatNewsDate = (value) => {
     return value;
   }
 };
-
-const getNewsDetailText = (item) => item?.content?.trim() || item?.summary || '';
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -266,9 +272,14 @@ const LandingPage = () => {
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }, gap: 3 }}>
             {visibleNews.map((item, index) => (
               <Box key={`${item.id}-${index}-${currentNewsIndex}`} sx={{ background: '#fff', borderRadius: '24px', overflow: 'hidden', minWidth: 0, border: '1px solid rgba(16,24,40,0.08)', boxShadow: '0 18px 40px rgba(15,23,42,0.08)', display: 'flex', flexDirection: 'column' }}>
-                <Box sx={{ height: 190, background: item.image_url ? `linear-gradient(180deg, rgba(17,24,39,0.08), rgba(17,24,39,0.5)), url(${item.image_url})` : 'linear-gradient(135deg, #4ECDC4 0%, #2B7DE9 100%)', backgroundSize: 'cover', backgroundPosition: 'center', p: 2.5, display: 'flex', alignItems: 'flex-start' }}>
-                  <Chip label={formatNewsDate(item.published_at)} sx={{ background: 'rgba(255,255,255,0.92)', color: '#1a1a2e', fontWeight: 700 }} />
-                </Box>
+                <NewsCoverMedia item={item} height={190} sx={{ p: 2.5, display: 'flex', alignItems: 'flex-start' }}>
+                  <Box sx={{ p: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', height: '100%' }}>
+                    <Chip label={formatNewsDate(item.published_at)} sx={{ background: 'rgba(255,255,255,0.92)', color: '#1a1a2e', fontWeight: 700 }} />
+                    {detectNewsMediaKind(item.image_url, item.cover_media_type) === 'video' && (
+                      <Chip label="Video" sx={{ background: 'rgba(8,16,30,0.72)', color: '#fff', fontWeight: 700 }} />
+                    )}
+                  </Box>
+                </NewsCoverMedia>
                 <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
                   <Typography variant="h6" sx={{ fontWeight: 800, color: '#1a1a2e', mb: 1.5, lineHeight: 1.35, minHeight: 58 }}>{item.title}</Typography>
                   <Typography sx={{ color: 'text.secondary', lineHeight: 1.75, flexGrow: 1, display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.summary}</Typography>
@@ -285,12 +296,20 @@ const LandingPage = () => {
       <Dialog open={Boolean(selectedNews)} onClose={() => setSelectedNews(null)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '24px', overflow: 'hidden' } }}>
         {selectedNews && (
           <>
-            <Box sx={{ height: 220, background: selectedNews.image_url ? `linear-gradient(180deg, rgba(17,24,39,0.12), rgba(17,24,39,0.55)), url(${selectedNews.image_url})` : 'linear-gradient(135deg, #4ECDC4 0%, #2B7DE9 100%)', backgroundSize: 'cover', backgroundPosition: 'center', p: 3, display: 'flex', alignItems: 'flex-start' }}>
-              <Chip label={formatNewsDate(selectedNews.published_at)} sx={{ background: 'rgba(255,255,255,0.92)', color: '#1a1a2e', fontWeight: 700 }} />
-            </Box>
+            <NewsCoverMedia item={selectedNews} height={220}>
+              <Box sx={{ p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', height: '100%' }}>
+                <Chip label={formatNewsDate(selectedNews.published_at)} sx={{ background: 'rgba(255,255,255,0.92)', color: '#1a1a2e', fontWeight: 700 }} />
+                {detectNewsMediaKind(selectedNews.image_url, selectedNews.cover_media_type) === 'video' && (
+                  <Chip label="Video de portada" sx={{ background: 'rgba(8,16,30,0.72)', color: '#fff', fontWeight: 700 }} />
+                )}
+              </Box>
+            </NewsCoverMedia>
             <DialogTitle sx={{ pb: 1, fontWeight: 900, color: '#1a1a2e' }}>{selectedNews.title}</DialogTitle>
             <DialogContent sx={{ pb: 4 }}>
-              <Typography sx={{ color: 'text.secondary', lineHeight: 1.75, whiteSpace: 'pre-line' }}>{getNewsDetailText(selectedNews)}</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: '#10213a', mb: 2 }}>
+                {selectedNews.summary}
+              </Typography>
+              <NewsContentBlocks item={{ ...selectedNews, content: selectedNews.content || null }} />
             </DialogContent>
           </>
         )}

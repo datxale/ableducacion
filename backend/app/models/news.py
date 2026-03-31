@@ -13,6 +13,8 @@ class NewsPost(Base):
     summary = Column(Text, nullable=False)
     content = Column(Text, nullable=True)
     image_url = Column(String(500), nullable=True)
+    cover_media_type = Column(String(20), nullable=False, default="image", server_default="image")
+    content_blocks_json = Column(Text, nullable=True)
     link_url = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     published_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

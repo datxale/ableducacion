@@ -12,8 +12,10 @@ import { ArrowBack, OpenInNew } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import axiosInstance from '../../api/axios';
+import { NewsContentBlocks, NewsCoverMedia } from '../../components/News/NewsRichContent';
 import Footer from '../../components/Layout/Footer';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { detectNewsMediaKind } from '../../utils/news';
 
 const formatDate = (value) => {
   if (!value) return '';
@@ -90,23 +92,20 @@ const NewsDetailPage = () => {
 
         {item && (
           <Paper sx={{ borderRadius: '28px', overflow: 'hidden', boxShadow: '0 22px 48px rgba(15,23,42,0.08)' }}>
-            <Box
-              sx={{
-                height: { xs: 220, md: 340 },
-                background: item.image_url
-                  ? `linear-gradient(180deg, rgba(15,23,42,0.08), rgba(15,23,42,0.45)), url(${item.image_url})`
-                  : 'linear-gradient(135deg, #4ECDC4 0%, #2B7DE9 100%)',
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              }}
-            />
+            <NewsCoverMedia item={item} height={{ xs: 220, md: 340 }}>
+              <Box sx={{ p: 3, display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-start', height: '100%' }}>
+                {detectNewsMediaKind(item.image_url, item.cover_media_type) === 'video' && (
+                  <Chip label="Video de portada" sx={{ background: 'rgba(8,16,30,0.72)', color: '#fff', fontWeight: 700 }} />
+                )}
+              </Box>
+            </NewsCoverMedia>
             <Box sx={{ p: { xs: 3, md: 4 } }}>
               <Typography variant="h5" sx={{ fontWeight: 900, color: '#10213a', mb: 2 }}>
                 {item.summary}
               </Typography>
-              <Typography sx={{ color: 'text.secondary', lineHeight: 1.9, whiteSpace: 'pre-line', mb: item.link_url ? 3 : 0 }}>
-                {item.content || item.summary}
-              </Typography>
+              <Box sx={{ mb: item.link_url ? 3 : 0 }}>
+                <NewsContentBlocks item={{ ...item, content: item.content || null }} />
+              </Box>
               {item.link_url && (
                 <Button
                   variant="contained"
