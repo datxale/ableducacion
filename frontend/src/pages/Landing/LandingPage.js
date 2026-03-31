@@ -1,20 +1,10 @@
-import React, {
-  Suspense,
-  lazy,
-  startTransition,
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import React, { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Box, Button, Chip, Container, Dialog, DialogContent, DialogTitle, Grid, Typography } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import axiosInstance from '../../api/axios';
 import Footer from '../../components/Layout/Footer';
 import { buildDefaultHeroSlides, landingPageDefaults, mergeLandingPageConfig } from '../../constants/landingPageDefaults';
-
-const HeroThreeScene = lazy(() => import('../../components/Landing/HeroThreeScene'));
 
 const stepVisuals = [
   { number: 1, color: '#4ECDC4', label: '01' },
@@ -93,11 +83,7 @@ const HeroMediaFrame = ({ slide }) => {
     );
   }
 
-  return (
-    <Suspense fallback={<Box sx={frameStyles} />}>
-      <HeroThreeScene highlights={slide.highlights || []} />
-    </Suspense>
-  );
+  return null;
 };
 
 const LandingPage = () => {
@@ -132,6 +118,9 @@ const LandingPage = () => {
 
   const heroSlides = useMemo(() => (landingContent.hero_slides?.length ? landingContent.hero_slides : buildDefaultHeroSlides(landingContent)), [landingContent]);
   const activeSlide = heroSlides[deferredSlideIndex] || heroSlides[0];
+  const showHeroMedia = Boolean(
+    (activeSlide.media_type === 'image' || activeSlide.media_type === 'video') && activeSlide.media_url,
+  );
 
   useEffect(() => {
     if (heroSlides.length <= 1) return undefined;
@@ -220,7 +209,15 @@ const LandingPage = () => {
         </Box>
         <Box sx={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)', backgroundSize: { xs: '26px 26px', md: '38px 38px' }, maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.22), rgba(0,0,0,0.78) 18%, rgba(0,0,0,0.1) 100%)', opacity: 0.4 }} />
         <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 1 }}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 560px) minmax(0, 1fr)' }, gap: { xs: 4.5, lg: 6.5 }, alignItems: 'center' }}>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', lg: showHeroMedia ? 'minmax(0, 560px) minmax(0, 1fr)' : 'minmax(0, 560px)' },
+              gap: { xs: 4.5, lg: 6.5 },
+              alignItems: 'center',
+              justifyContent: showHeroMedia ? 'stretch' : 'flex-start',
+            }}
+          >
             <Box sx={{ maxWidth: { xs: '100%', lg: 560 } }}>
               <Box sx={{ display: 'flex', gap: 1.2, flexWrap: 'wrap', mb: 2.5 }}>
                 <Chip label={activeSlide.eyebrow || 'Experiencia inmersiva'} sx={{ background: 'rgba(255,255,255,0.12)', color: '#fff', border: '1px solid rgba(255,255,255,0.16)', fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', backdropFilter: 'blur(16px)' }} />
@@ -253,7 +250,7 @@ const LandingPage = () => {
                 ))}
               </Box>
             </Box>
-            <Box sx={{ display: 'flex', justifyContent: { xs: 'center', lg: 'flex-end' } }}>
+            <Box sx={{ display: showHeroMedia ? 'flex' : 'none', justifyContent: { xs: 'center', lg: 'flex-end' } }}>
               <Box sx={{ position: 'relative', width: '100%', maxWidth: { xs: 620, lg: 700 } }}>
                 <HeroMediaFrame slide={activeSlide} />
               </Box>
