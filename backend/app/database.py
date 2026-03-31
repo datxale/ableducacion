@@ -28,13 +28,21 @@ def create_tables():
         user, academic_group, chat_message, grade, subject, month, week,
         activity, planning, live_class, enrollment, progress,
         testimonial, activity_submission, notification, live_class_attendance,
-        news
+        news, landing_page
     )
     Base.metadata.create_all(bind=engine)
 
 
 def apply_safe_schema_updates():
     with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+                ALTER TABLE landing_page_config
+                ADD COLUMN IF NOT EXISTS hero_slider_json TEXT
+                """
+            )
+        )
         connection.execute(
             text(
                 """

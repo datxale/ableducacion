@@ -17,6 +17,7 @@ class LandingPageConfig(Base):
     hero_description = Column(Text, nullable=False)
     hero_primary_button_label = Column(Text, nullable=False)
     hero_secondary_button_label = Column(Text, nullable=False)
+    hero_slider_json = Column(Text, nullable=True)
     about_chip_label = Column(Text, nullable=False)
     about_title = Column(Text, nullable=False)
     about_description_1 = Column(Text, nullable=False)

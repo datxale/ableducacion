@@ -28,6 +28,7 @@ from app.routers import (
     news,
     chat,
     uploads,
+    landing_page,
 )
 from app.services.live_class_recordings import start_live_class_recording_sync_loop
 
@@ -97,6 +98,7 @@ app.include_router(testimonials.router)
 app.include_router(news.router)
 app.include_router(chat.router)
 app.include_router(uploads.router)
+app.include_router(landing_page.router)
 
 
 @app.on_event("startup")

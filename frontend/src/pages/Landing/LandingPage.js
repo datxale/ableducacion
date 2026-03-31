@@ -1,28 +1,25 @@
-import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
-import {
-  Box,
-  Button,
-  Chip,
-  Container,
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  Grid,
-  Typography,
-} from '@mui/material';
+import React, {
+  Suspense,
+  lazy,
+  startTransition,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { Box, Button, Chip, Container, Dialog, DialogContent, DialogTitle, Grid, Typography } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import axiosInstance from '../../api/axios';
 import Footer from '../../components/Layout/Footer';
-import {
-  landingPageDefaults,
-  mergeLandingPageConfig,
-} from '../../constants/landingPageDefaults';
+import { buildDefaultHeroSlides, landingPageDefaults, mergeLandingPageConfig } from '../../constants/landingPageDefaults';
+
+const HeroThreeScene = lazy(() => import('../../components/Landing/HeroThreeScene'));
 
 const stepVisuals = [
-  { number: 1, color: '#4ECDC4', emoji: '👩‍🏫' },
-  { number: 2, color: '#FF6B6B', emoji: '📱' },
-  { number: 3, color: '#56CCF2', emoji: '📊' },
+  { number: 1, color: '#4ECDC4', label: '01' },
+  { number: 2, color: '#FF6B6B', label: '02' },
+  { number: 3, color: '#56CCF2', label: '03' },
 ];
 
 const aboutCardColors = ['#4ECDC4', '#FF6B6B', '#56CCF2', '#FFD93D'];
@@ -55,143 +52,129 @@ const placeholderNews = [
 ];
 
 const formatNewsDate = (value) => {
-  if (!value) {
-    return '';
-  }
-
+  if (!value) return '';
   try {
-    return new Date(value).toLocaleDateString('es-PE', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-    });
+    return new Date(value).toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' });
   } catch (error) {
     return value;
   }
 };
 
-const getNewsDetailText = (item) => {
-  const content = item?.content?.trim();
-  if (content) {
-    return content;
+const getNewsDetailText = (item) => item?.content?.trim() || item?.summary || '';
+
+const HeroMediaFrame = ({ slide }) => {
+  const frameStyles = {
+    position: 'relative',
+    width: '100%',
+    maxWidth: { xs: 620, lg: 680 },
+    height: { xs: 360, sm: 450, lg: 560 },
+    borderRadius: { xs: '28px', lg: '38px' },
+    overflow: 'hidden',
+    border: '1px solid rgba(255,255,255,0.18)',
+    boxShadow: '0 45px 120px rgba(4, 10, 24, 0.34)',
+    background: `linear-gradient(145deg, ${slide.background_start} 0%, ${slide.background_end} 100%)`,
+  };
+
+  if (slide.media_type === 'video' && slide.media_url) {
+    return (
+      <Box sx={frameStyles}>
+        <Box component="video" src={slide.media_url} poster={slide.poster_url || undefined} muted autoPlay loop playsInline sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.04)' }} />
+        <Box sx={{ position: 'absolute', inset: 0, background: `linear-gradient(180deg, rgba(5,10,24,0.08) 0%, ${slide.overlay_color} 100%)` }} />
+        <Box sx={{ position: 'absolute', left: 20, bottom: 20, px: 2, py: 1.4, borderRadius: '20px', background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.16)', backdropFilter: 'blur(18px)', color: '#fff' }}>
+          <Typography sx={{ fontSize: '0.72rem', letterSpacing: '0.15em', opacity: 0.7, fontWeight: 800 }}>VIDEO HERO</Typography>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 800 }}>Portada en movimiento</Typography>
+        </Box>
+      </Box>
+    );
   }
 
-  return item?.summary || '';
-};
+  if (slide.media_type === 'image' && slide.media_url) {
+    return (
+      <Box sx={frameStyles}>
+        <Box sx={{ position: 'absolute', inset: 0, backgroundImage: `url(${slide.media_url})`, backgroundSize: 'cover', backgroundPosition: 'center', transform: 'scale(1.04)' }} />
+        <Box sx={{ position: 'absolute', inset: 0, background: `linear-gradient(110deg, ${slide.overlay_color} 0%, rgba(6,15,35,0.2) 100%)` }} />
+        <Box sx={{ position: 'absolute', right: 20, top: 20, px: 2, py: 1.4, borderRadius: '20px', background: 'rgba(6,15,35,0.42)', border: '1px solid rgba(255,255,255,0.14)', backdropFilter: 'blur(18px)', color: '#fff' }}>
+          <Typography sx={{ fontSize: '0.72rem', letterSpacing: '0.15em', opacity: 0.7, fontWeight: 800 }}>IMAGEN DESTACADA</Typography>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 800 }}>Slide administrable</Typography>
+        </Box>
+      </Box>
+    );
+  }
 
-const HeroThreeScene = lazy(() => import('../../components/Landing/HeroThreeScene'));
+  return (
+    <Suspense fallback={<Box sx={frameStyles} />}>
+      <HeroThreeScene highlights={slide.highlights || []} />
+    </Suspense>
+  );
+};
 
 const LandingPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-
   const [landingContent, setLandingContent] = useState(landingPageDefaults);
   const [news, setNews] = useState([]);
   const [currentNewsIndex, setCurrentNewsIndex] = useState(0);
   const [selectedNews, setSelectedNews] = useState(null);
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+  const deferredSlideIndex = useDeferredValue(activeSlideIndex);
 
   useEffect(() => {
     let isMounted = true;
-
-    Promise.allSettled([
-      axiosInstance.get('/landing-page/'),
-      axiosInstance.get('/news/'),
-    ]).then(([landingResponse, newsResponse]) => {
-      if (!isMounted) {
-        return;
-      }
-
-      if (landingResponse.status === 'fulfilled') {
-        setLandingContent(mergeLandingPageConfig(landingResponse.value.data));
-      } else {
-        setLandingContent(landingPageDefaults);
-      }
-
-      if (newsResponse.status === 'fulfilled') {
-        setNews(newsResponse.value.data || []);
-      } else {
-        setNews([]);
-      }
+    Promise.allSettled([axiosInstance.get('/landing-page/'), axiosInstance.get('/news/')]).then(([landingResponse, newsResponse]) => {
+      if (!isMounted) return;
+      setLandingContent(landingResponse.status === 'fulfilled' ? mergeLandingPageConfig(landingResponse.value.data) : landingPageDefaults);
+      setNews(newsResponse.status === 'fulfilled' ? newsResponse.value.data || [] : []);
     });
-
     return () => {
       isMounted = false;
     };
   }, []);
 
   useEffect(() => {
-    if (!location.hash) {
-      return undefined;
-    }
-
-    const elementId = location.hash.replace('#', '');
-    const target = document.getElementById(elementId);
-
-    if (!target) {
-      return undefined;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 80);
-
+    if (!location.hash) return undefined;
+    const target = document.getElementById(location.hash.replace('#', ''));
+    if (!target) return undefined;
+    const timeoutId = window.setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
     return () => window.clearTimeout(timeoutId);
   }, [location.hash]);
 
+  const heroSlides = useMemo(() => (landingContent.hero_slides?.length ? landingContent.hero_slides : buildDefaultHeroSlides(landingContent)), [landingContent]);
+  const activeSlide = heroSlides[deferredSlideIndex] || heroSlides[0];
+
+  useEffect(() => {
+    if (heroSlides.length <= 1) return undefined;
+    const timer = window.setInterval(() => {
+      startTransition(() => {
+        setActiveSlideIndex((previous) => (previous + 1) % heroSlides.length);
+      });
+    }, 6200);
+    return () => window.clearInterval(timer);
+  }, [heroSlides.length]);
+
   const newsSource = useMemo(() => {
-    if (news.length === 0) {
-      return placeholderNews;
-    }
-
-    if (news.length >= 3) {
-      return news;
-    }
-
+    if (news.length === 0) return placeholderNews;
+    if (news.length >= 3) return news;
     return [...news, ...placeholderNews.slice(0, 3 - news.length)];
   }, [news]);
 
   useEffect(() => {
-    if (newsSource.length <= 1) {
-      return undefined;
-    }
-
-    const timer = setInterval(() => {
-      setCurrentNewsIndex((prev) => (prev + 1) % newsSource.length);
+    if (newsSource.length <= 1) return undefined;
+    const timer = window.setInterval(() => {
+      setCurrentNewsIndex((previous) => (previous + 1) % newsSource.length);
     }, 4500);
-
-    return () => clearInterval(timer);
+    return () => window.clearInterval(timer);
   }, [newsSource.length]);
 
   const visibleNews = useMemo(() => {
     const cardsToShow = Math.min(3, newsSource.length);
-
-    return Array.from({ length: cardsToShow }, (_, offset) => {
-      const index = (currentNewsIndex + offset) % newsSource.length;
-      return newsSource[index];
-    });
+    return Array.from({ length: cardsToShow }, (_, offset) => newsSource[(currentNewsIndex + offset) % newsSource.length]);
   }, [currentNewsIndex, newsSource]);
 
   const aboutCards = [
-    {
-      title: landingContent.about_card_1_title,
-      value: landingContent.about_card_1_value,
-      color: aboutCardColors[0],
-    },
-    {
-      title: landingContent.about_card_2_title,
-      value: landingContent.about_card_2_value,
-      color: aboutCardColors[1],
-    },
-    {
-      title: landingContent.about_card_3_title,
-      value: landingContent.about_card_3_value,
-      color: aboutCardColors[2],
-    },
-    {
-      title: landingContent.about_card_4_title,
-      value: landingContent.about_card_4_value,
-      color: aboutCardColors[3],
-    },
+    { title: landingContent.about_card_1_title, value: landingContent.about_card_1_value, color: aboutCardColors[0] },
+    { title: landingContent.about_card_2_title, value: landingContent.about_card_2_value, color: aboutCardColors[1] },
+    { title: landingContent.about_card_3_title, value: landingContent.about_card_3_value, color: aboutCardColors[2] },
+    { title: landingContent.about_card_4_title, value: landingContent.about_card_4_value, color: aboutCardColors[3] },
   ];
 
   const steps = stepVisuals.map((step, index) => ({
@@ -199,264 +182,115 @@ const LandingPage = () => {
     title: landingContent[`step_${index + 1}_title`],
     desc: landingContent[`step_${index + 1}_description`],
   }));
-  const heroHighlights = [
-    landingContent.about_card_2_value,
-    landingContent.about_card_3_value,
-    landingContent.about_card_4_value,
-  ];
+
+  const handleHeroAction = (url, fallback) => {
+    const target = (url || fallback || '').trim();
+    if (!target) return;
+    if (target.startsWith('http://') || target.startsWith('https://')) {
+      window.open(target, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (target.startsWith('/inicio#')) {
+      navigate({ pathname: '/inicio', hash: target.replace('/inicio', '') });
+      return;
+    }
+    if (target.startsWith('#')) {
+      navigate({ pathname: '/inicio', hash: target });
+      return;
+    }
+    navigate(target);
+  };
 
   return (
     <Box sx={{ overflowX: 'hidden', fontFamily: "'Nunito', sans-serif" }}>
       <Box
         id="inicio"
         sx={{
-          background: `
-            radial-gradient(circle at 4% 12%, rgba(91, 110, 225, 0.34), transparent 11%),
-            radial-gradient(circle at 78% 15%, rgba(255, 107, 107, 0.32), transparent 8%),
-            radial-gradient(circle at 54% 44%, rgba(255, 255, 255, 0.22), transparent 7%),
-            linear-gradient(135deg, #63ddd6 0%, #44cfcb 36%, #2b8ff0 100%)
-          `,
           position: 'relative',
-          overflow: 'hidden',
+          minHeight: { xs: '100vh', md: '100svh' },
           pt: { xs: 11, md: 13 },
-          pb: { xs: 8, md: 10 },
-          minHeight: { md: '92vh' },
+          pb: { xs: 6, md: 7 },
           display: 'flex',
           alignItems: 'center',
+          overflow: 'hidden',
+          background: `linear-gradient(135deg, ${activeSlide.background_start} 0%, ${activeSlide.background_end} 100%)`,
+          transition: 'background 650ms ease',
         }}
       >
-        <Box
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            backgroundImage: `
-              linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)
-            `,
-            backgroundSize: { xs: '28px 28px', md: '38px 38px' },
-            maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.22), rgba(0,0,0,0.8) 18%, rgba(0,0,0,0.1) 100%)',
-            opacity: 0.22,
-          }}
-        />
-
-        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 560px' },
-              gap: { xs: 5, md: 6 },
-              alignItems: 'center',
-            }}
-          >
-            <Box sx={{ maxWidth: { xs: '100%', md: 560 } }}>
-                <Typography
-                  sx={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    px: 2,
-                    py: 1,
-                    borderRadius: '999px',
-                    background: 'rgba(255,255,255,0.22)',
-                    border: '1px solid rgba(255,255,255,0.3)',
-                    color: '#0e2846',
-                    fontWeight: 800,
-                    letterSpacing: '0.04em',
-                    textTransform: 'uppercase',
-                    fontSize: '0.75rem',
-                    mb: 2.5,
-                    backdropFilter: 'blur(16px)',
-                  }}
-                >
-                  Experiencia inmersiva ABL Educacion
-                </Typography>
-                <Typography
-                  variant="h2"
-                  sx={{
-                    fontWeight: 900,
-                    fontSize: { xs: '2.45rem', sm: '3.3rem', md: '4rem', lg: '4.45rem' },
-                    lineHeight: 1.02,
-                    mb: 2,
-                    color: '#11203f',
-                    fontStyle: 'italic',
-                    letterSpacing: '-0.03em',
-                    textWrap: 'balance',
-                  }}
-                >
-                  {landingContent.hero_title_line_1}
-                  <Box component="span" sx={{ display: 'block' }}>
-                    {landingContent.hero_title_line_2}
-                  </Box>
-                </Typography>
-                <Typography
-                  variant="body1"
-                  sx={{
-                    color: 'rgba(11,28,54,0.82)',
-                    mb: 4,
-                    lineHeight: 1.7,
-                    fontSize: { xs: '1rem', md: '1.08rem' },
-                    maxWidth: 500,
-                  }}
-                >
-                  {landingContent.hero_description}
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                  <Button
-                    variant="contained"
-                    size="large"
-                    onClick={() => navigate('/register')}
-                    sx={{
-                      background: '#FF6B6B',
-                      color: '#fff',
-                      fontWeight: 800,
-                      px: 4.4,
-                      py: 1.6,
-                      fontSize: '1rem',
-                      borderRadius: '999px',
-                      textTransform: 'none',
-                      boxShadow: '0 16px 30px rgba(255,107,107,0.34)',
-                      '&:hover': {
-                        background: '#e05555',
-                        transform: 'translateY(-2px)',
-                        boxShadow: '0 18px 34px rgba(255,107,107,0.38)',
-                      },
-                    }}
-                  >
-                    {landingContent.hero_primary_button_label}
-                  </Button>
-                  <Button
-                    variant="contained"
-                    size="large"
-                    onClick={() => navigate('/login')}
-                    sx={{
-                      background: '#FFD93D',
-                      color: '#102246',
-                      fontWeight: 800,
-                      px: 4.4,
-                      py: 1.6,
-                      fontSize: '1rem',
-                      borderRadius: '999px',
-                      textTransform: 'none',
-                      boxShadow: '0 16px 30px rgba(255,217,61,0.28)',
-                      '&:hover': {
-                        background: '#f0c830',
-                        transform: 'translateY(-2px)',
-                        boxShadow: '0 18px 34px rgba(255,217,61,0.32)',
-                      },
-                    }}
-                  >
-                    {landingContent.hero_secondary_button_label}
-                  </Button>
-                </Box>
-                <Box sx={{ display: 'flex', gap: 1.2, flexWrap: 'wrap', mt: 3.2 }}>
-                  {heroHighlights.map((highlight) => (
-                    <Chip
-                      key={highlight}
-                      label={highlight}
-                      sx={{
-                        background: 'rgba(255,255,255,0.18)',
-                        color: '#0f2344',
-                        fontWeight: 800,
-                        border: '1px solid rgba(255,255,255,0.3)',
-                        backdropFilter: 'blur(14px)',
-                        '& .MuiChip-label': {
-                          px: 1.8,
-                        },
-                      }}
-                    />
-                  ))}
-                </Box>
+        <Box sx={{ position: 'absolute', inset: 0 }}>
+          {heroSlides.map((slide, index) => (
+            <Box key={`${slide.title}-${index}`} sx={{ position: 'absolute', inset: 0, opacity: deferredSlideIndex === index ? 1 : 0, transition: 'opacity 700ms ease', background: `linear-gradient(135deg, ${slide.background_start} 0%, ${slide.background_end} 100%)` }}>
+              {slide.media_type === 'image' && slide.media_url && <Box sx={{ position: 'absolute', inset: 0, backgroundImage: `url(${slide.media_url})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.2, transform: 'scale(1.05)' }} />}
+              {slide.media_type === 'video' && slide.media_url && <Box component="video" src={slide.media_url} poster={slide.poster_url || undefined} muted autoPlay loop playsInline sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.16, transform: 'scale(1.05)' }} />}
+              <Box sx={{ position: 'absolute', inset: 0, background: `radial-gradient(circle at 12% 18%, rgba(255,255,255,0.14), transparent 18%), radial-gradient(circle at 86% 16%, ${slide.accent_color}40, transparent 18%), radial-gradient(circle at 72% 82%, rgba(255,255,255,0.12), transparent 20%), linear-gradient(110deg, ${slide.overlay_color} 0%, rgba(6,12,24,0.1) 100%)` }} />
             </Box>
-
-            <Box
-              sx={{
-                width: '100%',
-                display: 'flex',
-                justifyContent: { xs: 'center', md: 'flex-end' },
-              }}
-            >
-              <Box sx={{ width: { xs: '100%', md: 560 }, maxWidth: '100%', ml: { md: 'auto' } }}>
-                <Suspense
-                  fallback={(
-                    <Box
-                      sx={{
-                        width: { xs: '100%', md: 560 },
-                        maxWidth: '100%',
-                        height: { xs: 360, sm: 440, md: 520 },
-                        borderRadius: { xs: '30px', md: '38px' },
-                        background: 'linear-gradient(155deg, rgba(6, 20, 42, 0.88), rgba(14, 70, 118, 0.82), rgba(17, 128, 196, 0.48))',
-                        border: '1px solid rgba(255,255,255,0.22)',
-                        boxShadow: '0 35px 90px rgba(7, 18, 41, 0.34)',
-                      }}
-                    />
-                  )}
-                >
-                  <HeroThreeScene highlights={heroHighlights} />
-                </Suspense>
+          ))}
+        </Box>
+        <Box sx={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)', backgroundSize: { xs: '26px 26px', md: '38px 38px' }, maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.22), rgba(0,0,0,0.78) 18%, rgba(0,0,0,0.1) 100%)', opacity: 0.4 }} />
+        <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 1 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 560px) minmax(0, 1fr)' }, gap: { xs: 4.5, lg: 6.5 }, alignItems: 'center' }}>
+            <Box sx={{ maxWidth: { xs: '100%', lg: 560 } }}>
+              <Box sx={{ display: 'flex', gap: 1.2, flexWrap: 'wrap', mb: 2.5 }}>
+                <Chip label={activeSlide.eyebrow || 'Experiencia inmersiva'} sx={{ background: 'rgba(255,255,255,0.12)', color: '#fff', border: '1px solid rgba(255,255,255,0.16)', fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', backdropFilter: 'blur(16px)' }} />
+                <Chip label={`${String(deferredSlideIndex + 1).padStart(2, '0')} / ${String(heroSlides.length).padStart(2, '0')}`} sx={{ background: 'rgba(8,16,30,0.34)', color: '#fff', border: '1px solid rgba(255,255,255,0.12)', fontWeight: 800 }} />
+              </Box>
+              <Typography variant="h1" sx={{ fontWeight: 900, fontSize: { xs: '2.75rem', sm: '3.7rem', md: '4.6rem', xl: '5rem' }, lineHeight: 0.96, color: '#fff', whiteSpace: 'pre-line', letterSpacing: '-0.04em', textShadow: '0 18px 40px rgba(4,10,24,0.34)' }}>
+                {activeSlide.title}
+              </Typography>
+              <Typography sx={{ mt: 2.2, color: 'rgba(255,255,255,0.84)', fontSize: { xs: '1rem', md: '1.08rem' }, lineHeight: 1.8, maxWidth: 520 }}>
+                {activeSlide.description}
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1.8, flexWrap: 'wrap', mt: 3.4 }}>
+                <Button variant="contained" size="large" onClick={() => handleHeroAction(activeSlide.primary_button_url, '/register')} sx={{ background: '#FF6B6B', color: '#fff', fontWeight: 800, px: 4.6, py: 1.55, fontSize: '1rem', borderRadius: '999px', textTransform: 'none', boxShadow: '0 22px 44px rgba(255,107,107,0.28)', '&:hover': { background: '#ec5b5b', transform: 'translateY(-2px)', boxShadow: '0 24px 48px rgba(255,107,107,0.32)' } }}>
+                  {activeSlide.primary_button_label || landingContent.hero_primary_button_label}
+                </Button>
+                <Button variant="contained" size="large" onClick={() => handleHeroAction(activeSlide.secondary_button_url, '/login')} sx={{ background: '#FFD93D', color: '#102246', fontWeight: 800, px: 4.6, py: 1.55, fontSize: '1rem', borderRadius: '999px', textTransform: 'none', boxShadow: '0 22px 44px rgba(255,217,61,0.24)', '&:hover': { background: '#f2ca2f', transform: 'translateY(-2px)', boxShadow: '0 24px 48px rgba(255,217,61,0.3)' } }}>
+                  {activeSlide.secondary_button_label || landingContent.hero_secondary_button_label}
+                </Button>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1.1, flexWrap: 'wrap', mt: 3.2 }}>
+                {(activeSlide.highlights || []).map((highlight) => (
+                  <Chip key={highlight} label={highlight} sx={{ background: 'rgba(255,255,255,0.12)', color: '#fff', fontWeight: 800, border: '1px solid rgba(255,255,255,0.14)', backdropFilter: 'blur(12px)' }} />
+                ))}
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1.1, mt: 4.2, alignItems: 'center', flexWrap: 'wrap' }}>
+                {heroSlides.map((slide, index) => (
+                  <Button key={`${slide.title}-${index}-control`} onClick={() => startTransition(() => setActiveSlideIndex(index))} sx={{ minWidth: 0, p: 0, borderRadius: '16px', boxShadow: 'none', '&:hover': { background: 'transparent', boxShadow: 'none', transform: 'none' } }}>
+                    <Box sx={{ width: deferredSlideIndex === index ? 120 : 58, height: 10, borderRadius: 999, background: deferredSlideIndex === index ? 'linear-gradient(90deg, #ffffff 0%, rgba(255,255,255,0.76) 100%)' : 'rgba(255,255,255,0.18)', transition: 'all 280ms ease' }} />
+                  </Button>
+                ))}
+              </Box>
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: { xs: 'center', lg: 'flex-end' } }}>
+              <Box sx={{ position: 'relative', width: '100%', maxWidth: { xs: 620, lg: 700 } }}>
+                <HeroMediaFrame slide={activeSlide} />
+                <Box sx={{ position: 'absolute', left: { xs: 16, md: -34 }, bottom: { xs: -20, md: 34 }, width: { xs: 220, md: 250 }, p: 2.2, borderRadius: '24px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.14)', color: '#fff', backdropFilter: 'blur(18px)', boxShadow: '0 24px 48px rgba(5,9,22,0.2)' }}>
+                  <Typography sx={{ fontSize: '0.72rem', letterSpacing: '0.16em', opacity: 0.7, fontWeight: 800, mb: 0.6 }}>EXPERIENCIA</Typography>
+                  <Typography sx={{ fontSize: '1.05rem', fontWeight: 800, lineHeight: 1.3 }}>Header transparente, hero rotativo y contenido editable desde admin</Typography>
+                </Box>
               </Box>
             </Box>
           </Box>
         </Container>
       </Box>
-
-      <Box
-        id="quienes-somos"
-        sx={{
-          py: { xs: 7, md: 9 },
-          background: '#fff',
-          borderTop: '1px solid #f0f0f0',
-          borderBottom: '1px solid #f0f0f0',
-        }}
-      >
+      <Box id="quienes-somos" sx={{ py: { xs: 7, md: 9 }, background: '#fff', borderTop: '1px solid #eef2f6', borderBottom: '1px solid #eef2f6' }}>
         <Container maxWidth="lg">
           <Grid container spacing={4} alignItems="center">
             <Grid item xs={12} md={5}>
-              <Chip
-                label={landingContent.about_chip_label}
-                sx={{
-                  background: '#E3F7F5',
-                  color: '#15857d',
-                  fontWeight: 800,
-                  mb: 2,
-                }}
-              />
-              <Typography
-                variant="h3"
-                sx={{
-                  fontWeight: 900,
-                  color: '#1a1a2e',
-                  fontSize: { xs: '1.9rem', md: '2.5rem' },
-                  mb: 2,
-                }}
-              >
+              <Chip label={landingContent.about_chip_label} sx={{ background: '#E3F7F5', color: '#15857d', fontWeight: 800, mb: 2 }} />
+              <Typography variant="h3" sx={{ fontWeight: 900, color: '#1a1a2e', fontSize: { xs: '1.9rem', md: '2.5rem' }, mb: 2 }}>
                 {landingContent.about_title}
               </Typography>
-              <Typography sx={{ color: 'text.secondary', lineHeight: 1.8, mb: 2.5 }}>
-                {landingContent.about_description_1}
-              </Typography>
-              <Typography sx={{ color: 'text.secondary', lineHeight: 1.8 }}>
-                {landingContent.about_description_2}
-              </Typography>
+              <Typography sx={{ color: 'text.secondary', lineHeight: 1.8, mb: 2.5 }}>{landingContent.about_description_1}</Typography>
+              <Typography sx={{ color: 'text.secondary', lineHeight: 1.8 }}>{landingContent.about_description_2}</Typography>
             </Grid>
             <Grid item xs={12} md={7}>
               <Grid container spacing={2}>
                 {aboutCards.map((item) => (
                   <Grid item xs={12} sm={6} key={`${item.title}-${item.value}`}>
-                    <Box
-                      sx={{
-                        background: '#fff9ec',
-                        borderRadius: '22px',
-                        p: 3,
-                        height: '100%',
-                        border: `1px solid ${item.color}55`,
-                        boxShadow: '0 10px 30px rgba(0,0,0,0.04)',
-                      }}
-                    >
-                      <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: item.color, mb: 1 }}>
-                        {item.title}
-                      </Typography>
-                      <Typography sx={{ fontWeight: 800, color: '#1a1a2e', lineHeight: 1.4 }}>
-                        {item.value}
-                      </Typography>
+                    <Box sx={{ background: '#fff9ec', borderRadius: '22px', p: 3, height: '100%', border: `1px solid ${item.color}55`, boxShadow: '0 10px 30px rgba(0,0,0,0.04)' }}>
+                      <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: item.color, mb: 1 }}>{item.title}</Typography>
+                      <Typography sx={{ fontWeight: 800, color: '#1a1a2e', lineHeight: 1.4 }}>{item.value}</Typography>
                     </Box>
                   </Grid>
                 ))}
@@ -466,375 +300,83 @@ const LandingPage = () => {
         </Container>
       </Box>
 
-      <Box
-        id="noticias"
-        sx={{
-          py: { xs: 8, md: 9 },
-          background: 'linear-gradient(180deg, #ffffff 0%, #f7fbff 100%)',
-          borderTop: '1px solid #eef2f6',
-          borderBottom: '1px solid #eef2f6',
-        }}
-      >
+      <Box id="noticias" sx={{ py: { xs: 8, md: 9 }, background: 'linear-gradient(180deg, #ffffff 0%, #f7fbff 100%)', borderTop: '1px solid #eef2f6', borderBottom: '1px solid #eef2f6' }}>
         <Container maxWidth="lg">
           <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'flex-end', flexWrap: 'wrap', mb: 4 }}>
             <Box>
-              <Chip
-                label={landingContent.news_chip_label}
-                sx={{
-                  background: '#E9F2FF',
-                  color: '#2b7de9',
-                  fontWeight: 800,
-                  mb: 2,
-                }}
-              />
-              <Typography
-                variant="h3"
-                sx={{
-                  fontWeight: 900,
-                  color: '#1a1a2e',
-                  fontSize: { xs: '1.8rem', md: '2.4rem' },
-                  mb: 1,
-                }}
-              >
+              <Chip label={landingContent.news_chip_label} sx={{ background: '#E9F2FF', color: '#2b7de9', fontWeight: 800, mb: 2 }} />
+              <Typography variant="h3" sx={{ fontWeight: 900, color: '#1a1a2e', fontSize: { xs: '1.8rem', md: '2.4rem' }, mb: 1 }}>
                 {landingContent.news_title}
               </Typography>
-              <Typography sx={{ color: 'text.secondary', maxWidth: 660, lineHeight: 1.8 }}>
-                {landingContent.news_description}
-              </Typography>
+              <Typography sx={{ color: 'text.secondary', maxWidth: 660, lineHeight: 1.8 }}>{landingContent.news_description}</Typography>
             </Box>
-            <Typography sx={{ color: '#2b7de9', fontWeight: 700 }}>
-              {news.length > 0 ? `${news.length} noticias activas` : 'Sin noticias activas'}
-            </Typography>
+            <Typography sx={{ color: '#2b7de9', fontWeight: 700 }}>{news.length > 0 ? `${news.length} noticias activas` : 'Sin noticias activas'}</Typography>
           </Box>
 
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: 'repeat(3, minmax(280px, 1fr))',
-                md: 'repeat(3, minmax(0, 1fr))',
-              },
-              gap: 3,
-              overflowX: { xs: 'auto', md: 'visible' },
-              pb: { xs: 1.5, md: 0 },
-              scrollSnapType: { xs: 'x proximity', md: 'none' },
-              '&::-webkit-scrollbar': {
-                height: 8,
-              },
-              '&::-webkit-scrollbar-thumb': {
-                background: 'rgba(43,125,233,0.25)',
-                borderRadius: 999,
-              },
-            }}
-          >
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(3, minmax(280px, 1fr))', md: 'repeat(3, minmax(0, 1fr))' }, gap: 3, overflowX: { xs: 'auto', md: 'visible' }, pb: { xs: 1.5, md: 0 }, scrollSnapType: { xs: 'x proximity', md: 'none' }, '&::-webkit-scrollbar': { height: 8 }, '&::-webkit-scrollbar-thumb': { background: 'rgba(43,125,233,0.25)', borderRadius: 999 } }}>
             {visibleNews.map((item, index) => (
-              <Box
-                key={`${item.id}-${index}-${currentNewsIndex}`}
-                sx={{
-                  background: '#fff',
-                  borderRadius: '24px',
-                  overflow: 'hidden',
-                  minWidth: 0,
-                  border: '1px solid rgba(16,24,40,0.08)',
-                  boxShadow: '0 18px 40px rgba(15,23,42,0.08)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  scrollSnapAlign: 'start',
-                }}
-              >
-                <Box
-                  sx={{
-                    height: 190,
-                    background: item.image_url
-                      ? `linear-gradient(180deg, rgba(17,24,39,0.08), rgba(17,24,39,0.5)), url(${item.image_url})`
-                      : 'linear-gradient(135deg, #4ECDC4 0%, #2B7DE9 100%)',
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    position: 'relative',
-                    p: 2.5,
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                  }}
-                >
-                  <Chip
-                    label={formatNewsDate(item.published_at)}
-                    sx={{
-                      background: 'rgba(255,255,255,0.92)',
-                      color: '#1a1a2e',
-                      fontWeight: 700,
-                    }}
-                  />
+              <Box key={`${item.id}-${index}-${currentNewsIndex}`} sx={{ background: '#fff', borderRadius: '24px', overflow: 'hidden', minWidth: 0, border: '1px solid rgba(16,24,40,0.08)', boxShadow: '0 18px 40px rgba(15,23,42,0.08)', display: 'flex', flexDirection: 'column', scrollSnapAlign: 'start' }}>
+                <Box sx={{ height: 190, background: item.image_url ? `linear-gradient(180deg, rgba(17,24,39,0.08), rgba(17,24,39,0.5)), url(${item.image_url})` : 'linear-gradient(135deg, #4ECDC4 0%, #2B7DE9 100%)', backgroundSize: 'cover', backgroundPosition: 'center', p: 2.5, display: 'flex', alignItems: 'flex-start' }}>
+                  <Chip label={formatNewsDate(item.published_at)} sx={{ background: 'rgba(255,255,255,0.92)', color: '#1a1a2e', fontWeight: 700 }} />
                 </Box>
-
                 <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      fontWeight: 800,
-                      color: '#1a1a2e',
-                      mb: 1.5,
-                      lineHeight: 1.35,
-                      minHeight: 58,
-                    }}
-                  >
-                    {item.title}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      color: 'text.secondary',
-                      lineHeight: 1.75,
-                      flexGrow: 1,
-                      display: '-webkit-box',
-                      WebkitLineClamp: 4,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {item.summary}
-                  </Typography>
-                  <Button
-                    variant="text"
-                    onClick={() => setSelectedNews(item)}
-                    sx={{
-                      alignSelf: 'flex-start',
-                      mt: 2,
-                      px: 0,
-                      color: '#2B7DE9',
-                      fontWeight: 800,
-                      textTransform: 'none',
-                      boxShadow: 'none',
-                      '&:hover': {
-                        background: 'transparent',
-                        boxShadow: 'none',
-                        transform: 'none',
-                        color: '#1565c0',
-                      },
-                    }}
-                  >
+                  <Typography variant="h6" sx={{ fontWeight: 800, color: '#1a1a2e', mb: 1.5, lineHeight: 1.35, minHeight: 58 }}>{item.title}</Typography>
+                  <Typography sx={{ color: 'text.secondary', lineHeight: 1.75, flexGrow: 1, display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.summary}</Typography>
+                  <Button variant="text" onClick={() => setSelectedNews(item)} sx={{ alignSelf: 'flex-start', mt: 2, px: 0, color: '#2B7DE9', fontWeight: 800, textTransform: 'none', boxShadow: 'none', '&:hover': { background: 'transparent', boxShadow: 'none', transform: 'none', color: '#1565c0' } }}>
                     Ver mas
                   </Button>
                 </Box>
               </Box>
             ))}
           </Box>
-
-          {newsSource.length > 1 && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 4 }}>
-              {newsSource.map((item, index) => (
-                <Box
-                  key={`dot-${item.id}-${index}`}
-                  onClick={() => setCurrentNewsIndex(index)}
-                  sx={{
-                    width: currentNewsIndex === index ? 28 : 10,
-                    height: 10,
-                    borderRadius: 999,
-                    background: currentNewsIndex === index ? '#2B7DE9' : 'rgba(43,125,233,0.2)',
-                    cursor: 'pointer',
-                    transition: 'all 0.25s ease',
-                  }}
-                />
-              ))}
-            </Box>
-          )}
         </Container>
       </Box>
 
-      <Dialog
-        open={Boolean(selectedNews)}
-        onClose={() => setSelectedNews(null)}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: '24px',
-            overflow: 'hidden',
-          },
-        }}
-      >
+      <Dialog open={Boolean(selectedNews)} onClose={() => setSelectedNews(null)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '24px', overflow: 'hidden' } }}>
         {selectedNews && (
           <>
-            <Box
-              sx={{
-                height: 220,
-                background: selectedNews.image_url
-                  ? `linear-gradient(180deg, rgba(17,24,39,0.12), rgba(17,24,39,0.55)), url(${selectedNews.image_url})`
-                  : 'linear-gradient(135deg, #4ECDC4 0%, #2B7DE9 100%)',
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                p: 3,
-                display: 'flex',
-                alignItems: 'flex-start',
-              }}
-            >
-              <Chip
-                label={formatNewsDate(selectedNews.published_at)}
-                sx={{
-                  background: 'rgba(255,255,255,0.92)',
-                  color: '#1a1a2e',
-                  fontWeight: 700,
-                }}
-              />
+            <Box sx={{ height: 220, background: selectedNews.image_url ? `linear-gradient(180deg, rgba(17,24,39,0.12), rgba(17,24,39,0.55)), url(${selectedNews.image_url})` : 'linear-gradient(135deg, #4ECDC4 0%, #2B7DE9 100%)', backgroundSize: 'cover', backgroundPosition: 'center', p: 3, display: 'flex', alignItems: 'flex-start' }}>
+              <Chip label={formatNewsDate(selectedNews.published_at)} sx={{ background: 'rgba(255,255,255,0.92)', color: '#1a1a2e', fontWeight: 700 }} />
             </Box>
-            <DialogTitle
-              sx={{
-                pb: 1,
-                fontWeight: 900,
-                color: '#1a1a2e',
-              }}
-            >
-              {selectedNews.title}
-            </DialogTitle>
+            <DialogTitle sx={{ pb: 1, fontWeight: 900, color: '#1a1a2e' }}>{selectedNews.title}</DialogTitle>
             <DialogContent sx={{ pb: 4 }}>
-              <Typography
-                sx={{
-                  color: 'text.secondary',
-                  lineHeight: 1.75,
-                  whiteSpace: 'pre-line',
-                }}
-              >
-                {getNewsDetailText(selectedNews)}
-              </Typography>
+              <Typography sx={{ color: 'text.secondary', lineHeight: 1.75, whiteSpace: 'pre-line' }}>{getNewsDetailText(selectedNews)}</Typography>
             </DialogContent>
           </>
         )}
       </Dialog>
-
-      <Box
-        sx={{
-          py: { xs: 8, md: 12 },
-          background: '#FFF9EC',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 60,
-            left: -30,
-            width: 100,
-            height: 100,
-            borderRadius: '50%',
-            background: '#FF6B6B',
-            opacity: 0.6,
-          }}
-        />
-        <Box
-          sx={{
-            position: 'absolute',
-            bottom: '30%',
-            right: '5%',
-            width: 70,
-            height: 70,
-            borderRadius: '50%',
-            background: '#FFD93D',
-            opacity: 0.5,
-          }}
-        />
-
+      <Box id="pasos" sx={{ py: { xs: 8, md: 12 }, background: '#FFF9EC', position: 'relative', overflow: 'hidden' }}>
+        <Box sx={{ position: 'absolute', top: 60, left: -30, width: 100, height: 100, borderRadius: '50%', background: '#FF6B6B', opacity: 0.6 }} />
+        <Box sx={{ position: 'absolute', bottom: '30%', right: '5%', width: 70, height: 70, borderRadius: '50%', background: '#FFD93D', opacity: 0.5 }} />
         <Container maxWidth="md" sx={{ position: 'relative', zIndex: 1 }}>
           <Box sx={{ textAlign: 'center', mb: 8 }}>
-            <Typography
-              variant="h3"
-              sx={{
-                fontWeight: 900,
-                fontSize: { xs: '1.8rem', md: '2.5rem' },
-                color: '#1a1a2e',
-              }}
-            >
+            <Typography variant="h3" sx={{ fontWeight: 900, fontSize: { xs: '1.8rem', md: '2.5rem' }, color: '#1a1a2e' }}>
               {landingContent.steps_title}
             </Typography>
           </Box>
-
           <Grid container spacing={4}>
             {steps.map((step) => (
               <Grid item xs={12} md={4} key={step.number}>
                 <Box sx={{ textAlign: 'center' }}>
-                  <Box
-                    sx={{
-                      width: 180,
-                      height: 180,
-                      borderRadius: '50%',
-                      background: `linear-gradient(135deg, ${step.color}33, ${step.color}66)`,
-                      mx: 'auto',
-                      mb: 3,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      position: 'relative',
-                      border: `3px solid ${step.color}`,
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: 40,
-                        height: 40,
-                        borderRadius: '50%',
-                        background: step.color,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Typography sx={{ color: '#fff', fontWeight: 900, fontSize: '1.2rem' }}>
-                        {step.number}
-                      </Typography>
+                  <Box sx={{ width: 180, height: 180, borderRadius: '50%', background: `linear-gradient(135deg, ${step.color}33, ${step.color}66)`, mx: 'auto', mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', border: `3px solid ${step.color}` }}>
+                    <Box sx={{ position: 'absolute', top: 0, left: 0, width: 44, height: 44, borderRadius: '50%', background: step.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Typography sx={{ color: '#fff', fontWeight: 900, fontSize: '1rem' }}>{step.label}</Typography>
                     </Box>
-                    <Typography sx={{ fontSize: '3.5rem' }}>{step.emoji}</Typography>
+                    <Typography sx={{ fontSize: '1.2rem', fontWeight: 900, color: step.color, maxWidth: 120, lineHeight: 1.2 }}>{step.title}</Typography>
                   </Box>
-                  <Typography
-                    variant="subtitle1"
-                    sx={{ fontWeight: 800, mb: 1, color: '#1a1a2e', fontSize: '1rem' }}
-                  >
-                    {step.title}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      color: 'text.secondary',
-                      lineHeight: 1.6,
-                      maxWidth: 260,
-                      mx: 'auto',
-                    }}
-                  >
-                    {step.desc}
-                  </Typography>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1, color: '#1a1a2e', fontSize: '1rem' }}>{step.title}</Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.6, maxWidth: 260, mx: 'auto' }}>{step.desc}</Typography>
                 </Box>
               </Grid>
             ))}
           </Grid>
-
           <Box sx={{ textAlign: 'center', mt: 8 }}>
-            <Button
-              variant="contained"
-              size="large"
-              onClick={() => navigate('/register')}
-              sx={{
-                background: '#FF6B6B',
-                color: '#fff',
-                fontWeight: 800,
-                px: 6,
-                py: 1.8,
-                fontSize: '1.1rem',
-                borderRadius: '30px',
-                textTransform: 'none',
-                boxShadow: '0 4px 15px rgba(255,107,107,0.4)',
-                '&:hover': {
-                  background: '#e05555',
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 6px 20px rgba(255,107,107,0.5)',
-                },
-              }}
-            >
+            <Button variant="contained" size="large" onClick={() => navigate('/register')} sx={{ background: '#FF6B6B', color: '#fff', fontWeight: 800, px: 6, py: 1.8, fontSize: '1.1rem', borderRadius: '30px', textTransform: 'none', boxShadow: '0 4px 15px rgba(255,107,107,0.4)', '&:hover': { background: '#e05555', transform: 'translateY(-2px)', boxShadow: '0 6px 20px rgba(255,107,107,0.5)' } }}>
               {landingContent.steps_button_label}
             </Button>
           </Box>
         </Container>
       </Box>
-
       <Footer />
     </Box>
   );

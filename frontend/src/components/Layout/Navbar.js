@@ -165,6 +165,12 @@ const Navbar = () => {
               cursor: 'pointer',
               flexGrow: { xs: 1, md: 0 },
               mr: { md: 4 },
+              px: isLanding && !isAuthenticated ? 1.5 : 0,
+              py: isLanding && !isAuthenticated ? 0.8 : 0,
+              borderRadius: isLanding && !isAuthenticated ? '20px' : 0,
+              background: isLanding && !isAuthenticated ? 'rgba(6,15,35,0.16)' : 'transparent',
+              backdropFilter: isLanding && !isAuthenticated ? 'blur(16px)' : 'none',
+              border: isLanding && !isAuthenticated ? '1px solid rgba(255,255,255,0.12)' : 'none',
             }}
             onClick={() => navigate(isAuthenticated ? '/dashboard' : '/inicio')}
           >
@@ -175,27 +181,45 @@ const Navbar = () => {
               sx={{
                 height: { xs: 32, md: 40 },
                 width: 'auto',
-                filter: isLanding && !isAuthenticated ? 'none' : 'brightness(0) invert(1)',
+                filter: isLanding && !isAuthenticated
+                  ? 'brightness(0) invert(1) drop-shadow(0 8px 22px rgba(4,10,24,0.35))'
+                  : 'brightness(0) invert(1)',
               }}
             />
           </Box>
 
           {!isAuthenticated && !isMobile && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexGrow: 1 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                flexGrow: 1,
+                p: isLanding ? 0.8 : 0,
+                borderRadius: isLanding ? '22px' : 0,
+                background: isLanding ? 'rgba(6,15,35,0.14)' : 'transparent',
+                backdropFilter: isLanding ? 'blur(18px)' : 'none',
+                border: isLanding ? '1px solid rgba(255,255,255,0.12)' : 'none',
+                maxWidth: 'fit-content',
+              }}
+            >
               {publicNavItems.map((item) => (
                 <Button
                   key={item.label}
                   onClick={() => handlePublicNavigation(item.hash)}
                   sx={{
-                    color: '#1a1a2e',
+                    color: isLanding ? '#fff' : '#1a1a2e',
                     fontWeight: 700,
                     textTransform: 'none',
                     fontSize: '0.95rem',
                     borderRadius: '18px',
                     px: 2.2,
                     py: 1.1,
-                    background: isPublicNavActive(item.hash) ? 'rgba(255,255,255,0.16)' : 'transparent',
+                    background: isPublicNavActive(item.hash)
+                      ? 'rgba(255,255,255,0.16)'
+                      : 'transparent',
                     boxShadow: 'none',
+                    textShadow: isLanding ? '0 8px 24px rgba(4,10,24,0.35)' : 'none',
                     '&:hover': {
                       background: 'rgba(255,255,255,0.14)',
                       boxShadow: 'none',
@@ -338,7 +362,7 @@ const Navbar = () => {
                 variant="contained"
                 onClick={() => navigate('/login')}
                 sx={{
-                  background: '#FF6B6B',
+                  background: isLanding ? 'rgba(255,107,107,0.92)' : '#FF6B6B',
                   color: '#fff',
                   fontWeight: 700,
                   borderRadius: '30px',
@@ -346,7 +370,10 @@ const Navbar = () => {
                   py: 1,
                   textTransform: 'none',
                   fontSize: '0.9rem',
-                  boxShadow: '0 2px 8px rgba(255,107,107,0.3)',
+                  boxShadow: isLanding
+                    ? '0 14px 30px rgba(255,107,107,0.26)'
+                    : '0 2px 8px rgba(255,107,107,0.3)',
+                  backdropFilter: isLanding ? 'blur(16px)' : 'none',
                   '&:hover': {
                     background: '#e05555',
                     boxShadow: '0 4px 12px rgba(255,107,107,0.4)',

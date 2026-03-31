@@ -31,6 +31,7 @@ import ManageTestimonials from './pages/Admin/ManageTestimonials';
 import ManagePlanning from './pages/Admin/ManagePlanning';
 import ManageAcademics from './pages/Admin/ManageAcademics';
 import ChatPage from './pages/Chat/ChatPage';
+import ManageLandingPage from './pages/Admin/ManageLandingPage';
 
 const AppContent = () => {
   const { loading, isAuthenticated } = useAuth();
@@ -243,6 +244,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute adminOnly>
                 <ManageNews />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/landing-page"
+            element={
+              <ProtectedRoute adminOnly>
+                <ManageLandingPage />
               </ProtectedRoute>
             }
           />
