@@ -74,6 +74,8 @@ const defaultForm = {
   full_name: '',
   email: '',
   role: 'estudiante',
+  grade_id: '',
+  group_id: '',
   password: '',
   is_active: true,
 };
@@ -86,6 +88,8 @@ const ManageUsers = () => {
   const { user: currentUser, beginImpersonation } = useAuth();
 
   const [users, setUsers] = useState([]);
+  const [grades, setGrades] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -104,6 +108,7 @@ const ManageUsers = () => {
   const [impersonatingUserId, setImpersonatingUserId] = useState(null);
 
   const [form, setForm] = useState(defaultForm);
+  const isAcademicRole = form.role === 'estudiante' || form.role === 'docente';
 
   const getDisplayName = useCallback((u) => {
     if (u?.full_name) return u.full_name;
@@ -134,8 +139,14 @@ const ManageUsers = () => {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await axiosInstance.get('/users/');
-      setUsers(response.data?.results || response.data || []);
+      const [usersRes, gradesRes, groupsRes] = await Promise.all([
+        axiosInstance.get('/users/'),
+        axiosInstance.get('/grades/'),
+        axiosInstance.get('/groups/'),
+      ]);
+      setUsers(usersRes.data?.results || usersRes.data || []);
+      setGrades(gradesRes.data?.results || gradesRes.data || []);
+      setGroups(groupsRes.data?.results || groupsRes.data || []);
     } catch (err) {
       setError('Error al cargar usuarios.');
     } finally {
@@ -180,6 +191,21 @@ const ManageUsers = () => {
     fetchUsers();
   }, [fetchUsers]);
 
+  const gradesById = useMemo(
+    () => Object.fromEntries(grades.map((grade) => [grade.id, grade])),
+    [grades]
+  );
+
+  const groupsById = useMemo(
+    () => Object.fromEntries(groups.map((group) => [group.id, group])),
+    [groups]
+  );
+
+  const availableGroups = useMemo(
+    () => groups.filter((group) => !form.grade_id || group.grade_id === Number(form.grade_id)),
+    [form.grade_id, groups]
+  );
+
   useEffect(() => {
     setActiveTab(getTabFromPath(location.pathname));
   }, [location.pathname]);
@@ -212,11 +238,27 @@ const ManageUsers = () => {
       full_name: user.full_name || getDisplayName(user),
       email: user.email || '',
       role: user.role || 'estudiante',
+      grade_id: user.grade_id || '',
+      group_id: user.group_id || '',
       password: '',
       is_active: user.is_active !== false,
     });
     setDialogOpen(true);
   };
+
+  useEffect(() => {
+    if (!isAcademicRole || !form.group_id) return;
+
+    const selectedGroup = groupsById[Number(form.group_id)];
+    if (!selectedGroup) {
+      setForm((current) => ({ ...current, group_id: '' }));
+      return;
+    }
+
+    if (form.grade_id && Number(selectedGroup.grade_id) !== Number(form.grade_id)) {
+      setForm((current) => ({ ...current, group_id: '' }));
+    }
+  }, [form.grade_id, form.group_id, groupsById, isAcademicRole]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -224,10 +266,24 @@ const ManageUsers = () => {
     setSuccess('');
 
     try {
+      if (isAcademicRole && !form.grade_id) {
+        setError(`Debes asignar un grado al ${form.role}.`);
+        setSaving(false);
+        return;
+      }
+
+      if (isAcademicRole && !form.group_id) {
+        setError(`Debes asignar una seccion al ${form.role}.`);
+        setSaving(false);
+        return;
+      }
+
       const payload = {
         full_name: form.full_name,
         email: form.email,
         role: form.role,
+        grade_id: isAcademicRole ? Number(form.grade_id) : null,
+        group_id: isAcademicRole ? Number(form.group_id) : null,
         is_active: form.is_active,
       };
       if (form.password) payload.password = form.password;
@@ -339,7 +395,7 @@ const ManageUsers = () => {
         }}
       >
         <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
-          <Breadcrumbs sx={{ mb: 2 }} separator="›">
+          <Breadcrumbs sx={{ mb: 2 }} separator=">">
             <Link
               component="button"
               onClick={() => navigate('/dashboard')}
@@ -494,11 +550,29 @@ const ManageUsers = () => {
                               <Box>
                                 <Typography variant="body2" fontWeight={600}>{displayName}</Typography>
                                 <Typography variant="caption" color="text.secondary">{profile.email}</Typography>
+                                {(profile.grade_id || profile.group_id) && (
+                                  <Box sx={{ display: 'flex', gap: 0.5, mt: 0.6, flexWrap: 'wrap' }}>
+                                    {profile.grade_id && (
+                                      <Chip
+                                        label={gradesById[profile.grade_id]?.name || `Grado ${profile.grade_id}`}
+                                        size="small"
+                                        sx={{ bgcolor: '#eef4ff', color: '#2457a6', fontWeight: 700, fontSize: '0.68rem' }}
+                                      />
+                                    )}
+                                    {profile.group_id && (
+                                      <Chip
+                                        label={`Seccion ${groupsById[profile.group_id]?.name || profile.group_id}`}
+                                        size="small"
+                                        sx={{ bgcolor: '#f3e5f5', color: '#7b1fa2', fontWeight: 700, fontSize: '0.68rem' }}
+                                      />
+                                    )}
+                                  </Box>
+                                )}
                               </Box>
                             </Box>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2">{profile.email || '—'}</Typography>
+                            <Typography variant="body2">{profile.email || 'Sin email'}</Typography>
                           </TableCell>
                           <TableCell>
                             <Chip
@@ -658,6 +732,20 @@ const ManageUsers = () => {
                                       size="small"
                                       sx={{ bgcolor: roleInfo.bg, color: roleInfo.color, fontWeight: 700, fontSize: '0.7rem' }}
                                     />
+                                    {profile.grade_id && (
+                                      <Chip
+                                        label={gradesById[profile.grade_id]?.name || `Grado ${profile.grade_id}`}
+                                        size="small"
+                                        sx={{ bgcolor: '#eef4ff', color: '#2457a6', fontWeight: 700, fontSize: '0.7rem' }}
+                                      />
+                                    )}
+                                    {profile.group_id && (
+                                      <Chip
+                                        label={`Seccion ${groupsById[profile.group_id]?.name || profile.group_id}`}
+                                        size="small"
+                                        sx={{ bgcolor: '#f3e5f5', color: '#7b1fa2', fontWeight: 700, fontSize: '0.7rem' }}
+                                      />
+                                    )}
                                     <Chip
                                       label={profile.is_active !== false ? 'Activo' : 'Inactivo'}
                                       size="small"
@@ -742,7 +830,15 @@ const ManageUsers = () => {
                 <InputLabel>Rol</InputLabel>
                 <Select
                   value={form.role}
-                  onChange={(e) => setForm({ ...form, role: e.target.value })}
+                  onChange={(e) => {
+                    const nextRole = e.target.value;
+                    setForm((current) => ({
+                      ...current,
+                      role: nextRole,
+                      grade_id: nextRole === 'admin' ? '' : current.grade_id,
+                      group_id: nextRole === 'admin' ? '' : current.group_id,
+                    }));
+                  }}
                   label="Rol"
                 >
                   <MenuItem value="estudiante">Estudiante</MenuItem>
@@ -751,6 +847,44 @@ const ManageUsers = () => {
                 </Select>
               </FormControl>
             </Grid>
+
+            {isAcademicRole && (
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Grado</InputLabel>
+                  <Select
+                    value={form.grade_id}
+                    onChange={(e) => setForm((current) => ({
+                      ...current,
+                      grade_id: e.target.value,
+                      group_id: '',
+                    }))}
+                    label="Grado"
+                  >
+                    {grades.map((grade) => (
+                      <MenuItem key={grade.id} value={grade.id}>{grade.name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            )}
+
+            {isAcademicRole && (
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth disabled={!form.grade_id}>
+                  <InputLabel>Seccion</InputLabel>
+                  <Select
+                    value={form.group_id}
+                    onChange={(e) => setForm((current) => ({ ...current, group_id: e.target.value }))}
+                    label="Seccion"
+                  >
+                    {availableGroups.map((group) => (
+                      <MenuItem key={group.id} value={group.id}>{group.name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            )}
 
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth>

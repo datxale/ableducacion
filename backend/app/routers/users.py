@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.academic_group import AcademicGroup
+from app.models.grade import Grade
 from app.models.live_class import LiveClass
 from app.models.user import User, UserRole
 from app.schemas.user import UserCreate, UserUpdate, UserPublic, UserResponse
@@ -24,6 +25,61 @@ def _allowed_scope_for_teacher(db: Session, teacher_id: int) -> tuple[Set[int], 
         for item in db.query(LiveClass).filter(LiveClass.teacher_id == teacher_id).all()
     }
     return group_grade_ids | class_grade_ids, group_ids
+
+
+def _validate_user_assignment(
+    db: Session,
+    role: UserRole,
+    grade_id: Optional[int],
+    group_id: Optional[int],
+    current_user_id: Optional[int] = None,
+) -> Optional[AcademicGroup]:
+    if role == UserRole.admin:
+        return None
+
+    if grade_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Debe asignar un grado al {role.value}.",
+        )
+
+    if group_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Debe asignar una seccion al {role.value}.",
+        )
+
+    grade = db.query(Grade).filter(Grade.id == grade_id).first()
+    if not grade:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Grado no encontrado",
+        )
+
+    group = db.query(AcademicGroup).filter(AcademicGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Seccion no encontrada",
+        )
+
+    if group.grade_id != grade_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La seccion seleccionada no pertenece al grado indicado.",
+        )
+
+    if (
+        role == UserRole.docente
+        and group.teacher_id is not None
+        and group.teacher_id != current_user_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La seccion seleccionada ya tiene otro docente asignado.",
+        )
+
+    return group
 
 
 @router.get("/me", response_model=UserPublic)
@@ -120,6 +176,12 @@ def create_user(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Ya existe un usuario con ese correo electrónico",
         )
+    selected_group = _validate_user_assignment(
+        db,
+        user_data.role,
+        user_data.grade_id,
+        user_data.group_id,
+    )
     new_user = User(
         email=user_data.email,
         password_hash=hash_password(user_data.password),
@@ -136,6 +198,9 @@ def create_user(
         is_active=True,
     )
     db.add(new_user)
+    db.flush()
+    if user_data.role == UserRole.docente and selected_group is not None:
+        selected_group.teacher_id = new_user.id
     db.commit()
     db.refresh(new_user)
     return new_user
@@ -160,10 +225,25 @@ def update_user(
             detail="No tiene permisos para editar este usuario",
         )
     update_data = user_data.model_dump(exclude_unset=True)
+    if current_user.role == UserRole.admin:
+        next_role = update_data.get("role", user.role)
+        next_grade_id = update_data.get("grade_id", user.grade_id)
+        next_group_id = update_data.get("group_id", user.group_id)
+        selected_group = _validate_user_assignment(
+            db,
+            next_role,
+            next_grade_id,
+            next_group_id,
+            current_user_id=user.id,
+        )
+    else:
+        selected_group = None
     if "password" in update_data:
         update_data["password_hash"] = hash_password(update_data.pop("password"))
     for field, value in update_data.items():
         setattr(user, field, value)
+    if current_user.role == UserRole.admin and user.role == UserRole.docente and selected_group is not None:
+        selected_group.teacher_id = user.id
     db.commit()
     db.refresh(user)
     return user
