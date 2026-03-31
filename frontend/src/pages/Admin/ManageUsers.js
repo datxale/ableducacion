@@ -201,6 +201,24 @@ const ManageUsers = () => {
     [groups]
   );
 
+  const getGradeLabel = useCallback(
+    (profile) => {
+      if (profile?.role === 'admin') return 'No aplica';
+      if (!profile?.grade_id) return 'Sin asignar';
+      return gradesById[profile.grade_id]?.name || `Grado ${profile.grade_id}`;
+    },
+    [gradesById]
+  );
+
+  const getGroupLabel = useCallback(
+    (profile) => {
+      if (profile?.role === 'admin') return 'No aplica';
+      if (!profile?.group_id) return 'Sin asignar';
+      return groupsById[profile.group_id]?.name || `Seccion ${profile.group_id}`;
+    },
+    [groupsById]
+  );
+
   const availableGroups = useMemo(
     () => groups.filter((group) => !form.grade_id || group.grade_id === Number(form.grade_id)),
     [form.grade_id, groups]
@@ -509,6 +527,8 @@ const ManageUsers = () => {
                     <TableCell sx={{ fontWeight: 700 }}>Usuario</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Email</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Rol</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Grado</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Seccion</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Cuenta</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Conexion</TableCell>
                     <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Acciones</TableCell>
@@ -517,7 +537,7 @@ const ManageUsers = () => {
                 <TableBody>
                   {filteredUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} sx={{ textAlign: 'center', py: 5 }}>
+                      <TableCell colSpan={8} sx={{ textAlign: 'center', py: 5 }}>
                         <Typography sx={{ fontSize: '2rem', mb: 1 }}>??</Typography>
                         <Typography color="text.secondary">
                           {searchQuery ? 'No se encontraron usuarios' : 'No hay usuarios registrados'}
@@ -550,24 +570,6 @@ const ManageUsers = () => {
                               <Box>
                                 <Typography variant="body2" fontWeight={600}>{displayName}</Typography>
                                 <Typography variant="caption" color="text.secondary">{profile.email}</Typography>
-                                {(profile.grade_id || profile.group_id) && (
-                                  <Box sx={{ display: 'flex', gap: 0.5, mt: 0.6, flexWrap: 'wrap' }}>
-                                    {profile.grade_id && (
-                                      <Chip
-                                        label={gradesById[profile.grade_id]?.name || `Grado ${profile.grade_id}`}
-                                        size="small"
-                                        sx={{ bgcolor: '#eef4ff', color: '#2457a6', fontWeight: 700, fontSize: '0.68rem' }}
-                                      />
-                                    )}
-                                    {profile.group_id && (
-                                      <Chip
-                                        label={`Seccion ${groupsById[profile.group_id]?.name || profile.group_id}`}
-                                        size="small"
-                                        sx={{ bgcolor: '#f3e5f5', color: '#7b1fa2', fontWeight: 700, fontSize: '0.68rem' }}
-                                      />
-                                    )}
-                                  </Box>
-                                )}
                               </Box>
                             </Box>
                           </TableCell>
@@ -581,6 +583,50 @@ const ManageUsers = () => {
                               sx={{
                                 bgcolor: roleInfo.bg,
                                 color: roleInfo.color,
+                                fontWeight: 700,
+                                fontSize: '0.7rem',
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={getGradeLabel(profile)}
+                              size="small"
+                              sx={{
+                                bgcolor:
+                                  profile.role === 'admin'
+                                    ? '#f5f5f5'
+                                    : profile.grade_id
+                                      ? '#eef4ff'
+                                      : '#fff8e1',
+                                color:
+                                  profile.role === 'admin'
+                                    ? '#616161'
+                                    : profile.grade_id
+                                      ? '#2457a6'
+                                      : '#8d6e63',
+                                fontWeight: 700,
+                                fontSize: '0.7rem',
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={getGroupLabel(profile)}
+                              size="small"
+                              sx={{
+                                bgcolor:
+                                  profile.role === 'admin'
+                                    ? '#f5f5f5'
+                                    : profile.group_id
+                                      ? '#f3e5f5'
+                                      : '#fff8e1',
+                                color:
+                                  profile.role === 'admin'
+                                    ? '#616161'
+                                    : profile.group_id
+                                      ? '#7b1fa2'
+                                      : '#8d6e63',
                                 fontWeight: 700,
                                 fontSize: '0.7rem',
                               }}
