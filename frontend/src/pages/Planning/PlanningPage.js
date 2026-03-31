@@ -332,30 +332,61 @@ const PlanningPage = () => {
             ? { teacher_id: user.id }
             : undefined;
 
-      try {
-        const [planningRes, gradesRes, monthsRes, liveClassesRes, calendarRes] = await Promise.all([
-          axiosInstance.get('/planning/', {
-            params: isEstudiante && user?.grade_id ? { grade_id: user.grade_id } : undefined,
-          }),
-          axiosInstance.get('/grades/'),
-          axiosInstance.get('/months/'),
-          axiosInstance.get('/live-classes/', { params: liveClassParams }),
-          axiosInstance
-            .get('/live-classes/config/status')
-            .catch(() => ({ data: DEFAULT_CALENDAR_STATUS })),
-        ]);
+      const [planningRes, gradesRes, monthsRes, liveClassesRes, calendarRes] = await Promise.allSettled([
+        axiosInstance.get('/planning/', {
+          params: isEstudiante && user?.grade_id ? { grade_id: user.grade_id } : undefined,
+        }),
+        axiosInstance.get('/grades/'),
+        axiosInstance.get('/months/'),
+        axiosInstance.get('/live-classes/', { params: liveClassParams }),
+        axiosInstance.get('/live-classes/config/status'),
+      ]);
 
-        setItems(planningRes.data?.results || planningRes.data || []);
-        setGrades(gradesRes.data?.results || gradesRes.data || []);
-        setMonths(monthsRes.data?.results || monthsRes.data || []);
-        setLiveClasses(liveClassesRes.data?.results || liveClassesRes.data || []);
-        setCalendarStatus({ ...DEFAULT_CALENDAR_STATUS, ...(calendarRes.data || {}) });
-      } catch (err) {
-        setError('Error al cargar la planificacion y la agenda sincronizada.');
-        console.error(err);
-      } finally {
-        setLoading(false);
+      const hasCoreError = [planningRes, gradesRes, monthsRes].some((result) => result.status !== 'fulfilled');
+      const hasAgendaError = [liveClassesRes, calendarRes].some((result) => result.status !== 'fulfilled');
+
+      if (planningRes.status === 'fulfilled') {
+        setItems(planningRes.value.data?.results || planningRes.value.data || []);
+      } else {
+        setItems([]);
+        console.error(planningRes.reason);
       }
+
+      if (gradesRes.status === 'fulfilled') {
+        setGrades(gradesRes.value.data?.results || gradesRes.value.data || []);
+      } else {
+        setGrades([]);
+        console.error(gradesRes.reason);
+      }
+
+      if (monthsRes.status === 'fulfilled') {
+        setMonths(monthsRes.value.data?.results || monthsRes.value.data || []);
+      } else {
+        setMonths([]);
+        console.error(monthsRes.reason);
+      }
+
+      if (liveClassesRes.status === 'fulfilled') {
+        setLiveClasses(liveClassesRes.value.data?.results || liveClassesRes.value.data || []);
+      } else {
+        setLiveClasses([]);
+        console.error(liveClassesRes.reason);
+      }
+
+      if (calendarRes.status === 'fulfilled') {
+        setCalendarStatus({ ...DEFAULT_CALENDAR_STATUS, ...(calendarRes.value.data || {}) });
+      } else {
+        setCalendarStatus(DEFAULT_CALENDAR_STATUS);
+        console.error(calendarRes.reason);
+      }
+
+      if (hasCoreError) {
+        setError('Error al cargar la planificacion principal.');
+      } else if (hasAgendaError) {
+        setError('La agenda de clases no pudo cargarse por completo, pero el planificador sigue disponible.');
+      }
+
+      setLoading(false);
     };
 
     loadPageData();
