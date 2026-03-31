@@ -13,6 +13,16 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deploy to VPS via SSH
+        env:
+          GOOGLE_MEET_ENABLED: ${{ secrets.GOOGLE_MEET_ENABLED }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
+          GOOGLE_MEET_AUTO_RECORDING_ENABLED: ${{ secrets.GOOGLE_MEET_AUTO_RECORDING_ENABLED }}
+          GOOGLE_MEET_AUTO_TRANSCRIPTION_ENABLED: ${{ secrets.GOOGLE_MEET_AUTO_TRANSCRIPTION_ENABLED }}
+          GOOGLE_MEET_TIMEZONE: ${{ secrets.GOOGLE_MEET_TIMEZONE }}
+          GOOGLE_MEET_DURATION_MINUTES: ${{ secrets.GOOGLE_MEET_DURATION_MINUTES }}
+          GOOGLE_MEET_RECORDING_SYNC_INTERVAL_SECONDS: ${{ secrets.GOOGLE_MEET_RECORDING_SYNC_INTERVAL_SECONDS }}
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: 141.227.151.20
@@ -20,6 +30,7 @@ jobs:
           password: ${{ secrets.VPS_PASSWORD }}
           port: 2222
           command_timeout: 20m
+          envs: GOOGLE_MEET_ENABLED,GOOGLE_OAUTH_CLIENT_ID,GOOGLE_OAUTH_CLIENT_SECRET,GOOGLE_OAUTH_REFRESH_TOKEN,GOOGLE_MEET_AUTO_RECORDING_ENABLED,GOOGLE_MEET_AUTO_TRANSCRIPTION_ENABLED,GOOGLE_MEET_TIMEZONE,GOOGLE_MEET_DURATION_MINUTES,GOOGLE_MEET_RECORDING_SYNC_INTERVAL_SECONDS
           script: |
             # Clone or pull
             if [ -d "/home/ubuntu/ableducacion" ]; then
@@ -37,6 +48,41 @@ jobs:
             source venv/bin/activate
             pip install -r requirements.txt --quiet
             cp .env.example .env 2>/dev/null || true
+            python3 - <<'PY'
+            import os
+            from pathlib import Path
+
+            env_path = Path(".env")
+            env_values = {}
+
+            if env_path.exists():
+                for raw_line in env_path.read_text().splitlines():
+                    line = raw_line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    key, value = line.split("=", 1)
+                    env_values[key] = value
+
+            updates = {
+                "GOOGLE_MEET_ENABLED": os.getenv("GOOGLE_MEET_ENABLED", ""),
+                "GOOGLE_OAUTH_CLIENT_ID": os.getenv("GOOGLE_OAUTH_CLIENT_ID", ""),
+                "GOOGLE_OAUTH_CLIENT_SECRET": os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", ""),
+                "GOOGLE_OAUTH_REFRESH_TOKEN": os.getenv("GOOGLE_OAUTH_REFRESH_TOKEN", ""),
+                "GOOGLE_MEET_AUTO_RECORDING_ENABLED": os.getenv("GOOGLE_MEET_AUTO_RECORDING_ENABLED", ""),
+                "GOOGLE_MEET_AUTO_TRANSCRIPTION_ENABLED": os.getenv("GOOGLE_MEET_AUTO_TRANSCRIPTION_ENABLED", ""),
+                "GOOGLE_MEET_TIMEZONE": os.getenv("GOOGLE_MEET_TIMEZONE", ""),
+                "GOOGLE_MEET_DURATION_MINUTES": os.getenv("GOOGLE_MEET_DURATION_MINUTES", ""),
+                "GOOGLE_MEET_RECORDING_SYNC_INTERVAL_SECONDS": os.getenv("GOOGLE_MEET_RECORDING_SYNC_INTERVAL_SECONDS", ""),
+            }
+
+            for key, value in updates.items():
+                if value:
+                    env_values[key] = value
+
+            env_path.write_text(
+                "\n".join(f"{key}={value}" for key, value in sorted(env_values.items())) + "\n"
+            )
+            PY
 
             # Frontend
             cd /home/ubuntu/ableducacion/frontend
