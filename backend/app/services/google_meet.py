@@ -217,7 +217,11 @@ def sync_google_meet_recording(
         scopes=[GOOGLE_MEET_SPACE_READONLY_SCOPE],
         params={"filter": filter_expression, "pageSize": 10},
     )
-    conference_records = payload.get("conferenceRecords") or []
+    conference_records = [
+        item
+        for item in (payload.get("conferenceRecords") or [])
+        if isinstance(item, dict) and item.get("name")
+    ]
     if not conference_records:
         return {
             "meeting_code": meeting_code,
@@ -235,17 +239,23 @@ def sync_google_meet_recording(
         key=lambda item: item.get("startTime") or "",
         reverse=True,
     )[0]
+    resolved_space_name = _extract_space_name(conference_record.get("space")) or space_name
+    resolved_meeting_code = meeting_code or _resolve_meeting_code_from_space_name(resolved_space_name)
     recordings_payload = _meet_api_request(
         "GET",
         f"{conference_record['name']}/recordings",
         scopes=[GOOGLE_MEET_SPACE_READONLY_SCOPE],
         params={"pageSize": 10},
     )
-    recordings = recordings_payload.get("recordings") or []
+    recordings = [
+        item
+        for item in (recordings_payload.get("recordings") or [])
+        if isinstance(item, dict)
+    ]
     if not recordings:
         return {
-            "meeting_code": meeting_code or extract_google_meeting_code_from_space(space_name),
-            "space_name": conference_record.get("space", {}).get("name") or space_name,
+            "meeting_code": resolved_meeting_code,
+            "space_name": resolved_space_name,
             "recording_status": "processing" if conference_record.get("endTime") else "recording",
             "recording_file_id": None,
             "recording_resource_name": None,
@@ -259,11 +269,13 @@ def sync_google_meet_recording(
         key=lambda item: item.get("startTime") or "",
         reverse=True,
     )[0]
-    drive_destination = recording.get("driveDestination") or {}
+    drive_destination = recording.get("driveDestination")
+    if not isinstance(drive_destination, dict):
+        drive_destination = {}
 
     return {
-        "meeting_code": meeting_code or extract_google_meeting_code_from_space(space_name),
-        "space_name": conference_record.get("space", {}).get("name") or space_name,
+        "meeting_code": resolved_meeting_code,
+        "space_name": resolved_space_name,
         "recording_status": _map_recording_state(recording.get("state")),
         "recording_file_id": drive_destination.get("file"),
         "recording_resource_name": recording.get("name"),
@@ -488,6 +500,47 @@ def _extract_meeting_url(event: dict) -> str:
 
     raise GoogleMeetIntegrationError(
         "Google no devolvio un enlace de Meet para el evento creado."
+    )
+
+
+def _extract_space_name(space_value) -> Optional[str]:
+    if isinstance(space_value, str):
+        normalized = space_value.strip()
+        return normalized or None
+
+    if isinstance(space_value, dict):
+        name = space_value.get("name")
+        if isinstance(name, str):
+            normalized = name.strip()
+            return normalized or None
+
+    return None
+
+
+def _resolve_meeting_code_from_space_name(space_name: Optional[str]) -> Optional[str]:
+    normalized_space_name = (space_name or "").strip()
+    if not normalized_space_name:
+        return None
+
+    inferred_code = extract_google_meeting_code_from_space(normalized_space_name)
+    if inferred_code:
+        return inferred_code
+
+    if not normalized_space_name.startswith("spaces/"):
+        return None
+
+    try:
+        space_payload = _meet_api_request(
+            "GET",
+            normalized_space_name,
+            scopes=[GOOGLE_MEET_SPACE_READONLY_SCOPE],
+        )
+    except GoogleMeetIntegrationError:
+        return None
+
+    return (
+        space_payload.get("meetingCode")
+        or extract_google_meeting_code(space_payload.get("meetingUri"))
     )
 
 
