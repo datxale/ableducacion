@@ -38,6 +38,7 @@ import {
   Close,
   Delete,
   Edit,
+  FolderOpen,
   Grade,
   Home,
   Save,
@@ -46,6 +47,7 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import axiosInstance from '../../api/axios';
+import AssetLibraryDialog from '../../components/common/AssetLibraryDialog';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Footer from '../../components/Layout/Footer';
 import { uploadFile } from '../../utils/uploads';
@@ -57,10 +59,13 @@ const emptyForm = {
   activity_type: 'ficha',
   learning_format: 'material',
   subject_id: '',
+  group_id: '',
   month_id: '',
   week_number: '',
   file_url: '',
   video_url: '',
+  resource_url_input: '',
+  resources: [],
   max_score: '',
   due_at: '',
 };
@@ -73,6 +78,54 @@ const learningFormatLabel = {
 
 const toDatetimeLocal = (value) => (value ? new Date(value).toISOString().slice(0, 16) : '');
 
+const deriveFilenameFromUrl = (url) => {
+  if (!url) return '';
+  const cleanUrl = url.split('?')[0];
+  return cleanUrl.split('/').pop() || url;
+};
+
+const normalizeResources = (resources = []) =>
+  resources
+    .filter((resource) => resource?.url?.trim())
+    .reduce((accumulator, resource) => {
+      const url = resource.url.trim();
+      if (accumulator.some((item) => item.url === url)) {
+        return accumulator;
+      }
+
+      accumulator.push({
+        url,
+        filename: resource.filename || resource.original_filename || deriveFilenameFromUrl(url),
+        content_type: resource.content_type || null,
+        order_index: accumulator.length,
+      });
+      return accumulator;
+    }, []);
+
+const mergeResources = (currentResources = [], incomingResources = []) =>
+  normalizeResources([...currentResources, ...incomingResources]);
+
+const getActivityResources = (activity) => {
+  if (Array.isArray(activity?.resources) && activity.resources.length > 0) {
+    return normalizeResources(activity.resources);
+  }
+
+  if (activity?.file_url) {
+    return normalizeResources([
+      {
+        url: activity.file_url,
+        filename: deriveFilenameFromUrl(activity.file_url),
+        content_type: null,
+      },
+    ]);
+  }
+
+  return [];
+};
+
+const getResourceLabel = (resource, index) =>
+  resource.filename || deriveFilenameFromUrl(resource.url) || `Recurso ${index + 1}`;
+
 const ManageActivities = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -80,6 +133,7 @@ const ManageActivities = () => {
 
   const [activities, setActivities] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [months, setMonths] = useState([]);
   const [weeks, setWeeks] = useState([]);
   const [submissions, setSubmissions] = useState([]);
@@ -97,6 +151,8 @@ const ManageActivities = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [submissionsDialogOpen, setSubmissionsDialogOpen] = useState(false);
   const [gradeDialogOpen, setGradeDialogOpen] = useState(false);
+  const [assetDialogMode, setAssetDialogMode] = useState('resources');
+  const [assetDialogOpen, setAssetDialogOpen] = useState(false);
 
   const sectionPath = location.pathname.startsWith('/admin') && isAdmin ? '/admin' : '/dashboard';
   const sectionLabel = location.pathname.startsWith('/admin') && isAdmin ? 'Admin' : 'Docencia';
@@ -105,14 +161,16 @@ const ManageActivities = () => {
     setLoading(true);
     try {
       const params = isDocente && user?.id ? { created_by: user.id } : undefined;
-      const [activitiesRes, subjectsRes, monthsRes, weeksRes] = await Promise.all([
+      const [activitiesRes, subjectsRes, groupsRes, monthsRes, weeksRes] = await Promise.all([
         axiosInstance.get('/activities/', { params }),
         axiosInstance.get('/subjects/'),
+        axiosInstance.get('/groups/'),
         axiosInstance.get('/months/'),
         axiosInstance.get('/weeks/'),
       ]);
       setActivities(activitiesRes.data?.results || activitiesRes.data || []);
       setSubjects(subjectsRes.data?.results || subjectsRes.data || []);
+      setGroups(groupsRes.data?.results || groupsRes.data || []);
       setMonths(monthsRes.data?.results || monthsRes.data || []);
       setWeeks(weeksRes.data?.results || weeksRes.data || []);
     } catch (err) {
@@ -136,6 +194,7 @@ const ManageActivities = () => {
       subject_id: prefill.subject_id || '',
       month_id: prefill.month_id || '',
       week_number: prefill.week_number || '',
+      group_id: prefill.group_id || '',
       learning_format: prefill.learning_format || 'material',
       activity_type: prefill.activity_type || 'ficha',
       title: prefill.title || '',
@@ -147,6 +206,20 @@ const ManageActivities = () => {
   const subjectsById = useMemo(() => Object.fromEntries(subjects.map((item) => [item.id, item])), [subjects]);
   const monthsById = useMemo(() => Object.fromEntries(months.map((item) => [item.id, item])), [months]);
   const weeksById = useMemo(() => Object.fromEntries(weeks.map((item) => [item.id, item])), [weeks]);
+  const availableGroups = useMemo(() => {
+    const selectedSubject = subjectsById[Number(form.subject_id)];
+    return groups.filter((group) => {
+      if (!selectedSubject) return true;
+      return Number(group.grade_id) === Number(selectedSubject.grade_id);
+    });
+  }, [form.subject_id, groups, subjectsById]);
+
+  useEffect(() => {
+    if (!form.group_id) return;
+    if (!availableGroups.some((group) => Number(group.id) === Number(form.group_id))) {
+      setForm((current) => ({ ...current, group_id: '' }));
+    }
+  }, [availableGroups, form.group_id]);
 
   const filteredActivities = useMemo(
     () =>
@@ -181,12 +254,16 @@ const ManageActivities = () => {
 
   const openCreate = () => {
     setSelectedActivity(null);
-    setForm(emptyForm);
+    setForm({
+      ...emptyForm,
+      group_id: user?.group_id || groups[0]?.id || '',
+    });
     setDialogOpen(true);
   };
 
   const openEdit = (activity) => {
     const week = weeksById[activity.week_id];
+    const resources = getActivityResources(activity);
     setSelectedActivity(activity);
     setForm({
       title: activity.title || '',
@@ -195,10 +272,13 @@ const ManageActivities = () => {
       activity_type: activity.activity_type || 'ficha',
       learning_format: activity.learning_format || 'material',
       subject_id: week?.subject_id || '',
+      group_id: activity.group_id || '',
       month_id: week?.month_id || '',
       week_number: week?.number || '',
-      file_url: activity.file_url || '',
+      file_url: resources[0]?.url || '',
       video_url: activity.video_url || '',
+      resource_url_input: '',
+      resources,
       max_score: activity.max_score ?? '',
       due_at: toDatetimeLocal(activity.due_at),
     });
@@ -206,12 +286,28 @@ const ManageActivities = () => {
   };
 
   const handleUpload = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
     setUploading(true);
     try {
-      const uploaded = await uploadFile(file, 'activities');
-      setForm((current) => ({ ...current, file_url: uploaded.url }));
+      const uploadedResources = [];
+      for (const file of files) {
+        const uploaded = await uploadFile(file, 'activities');
+        uploadedResources.push({
+          url: uploaded.url,
+          filename: uploaded.filename || file.name,
+          content_type: uploaded.content_type || file.type || null,
+        });
+      }
+
+      setForm((current) => {
+        const resources = mergeResources(current.resources, uploadedResources);
+        return {
+          ...current,
+          file_url: resources[0]?.url || '',
+          resources,
+        };
+      });
     } catch (err) {
       setError(err.response?.data?.detail || 'No se pudo subir el archivo.');
     } finally {
@@ -220,13 +316,85 @@ const ManageActivities = () => {
     }
   };
 
+  const handleAddResourceUrl = () => {
+    const url = form.resource_url_input.trim();
+    if (!url) return;
+
+    setForm((current) => {
+      const resources = mergeResources(current.resources, [
+        {
+          url,
+          filename: deriveFilenameFromUrl(url),
+          content_type: null,
+        },
+      ]);
+
+      return {
+        ...current,
+        file_url: resources[0]?.url || '',
+        resource_url_input: '',
+        resources,
+      };
+    });
+  };
+
+  const handleRemoveResource = (resourceUrl) => {
+    setForm((current) => {
+      const resources = normalizeResources(
+        current.resources.filter((resource) => resource.url !== resourceUrl)
+      );
+
+      return {
+        ...current,
+        file_url: resources[0]?.url || '',
+        resources,
+      };
+    });
+  };
+
+  const openAssetDialog = (mode) => {
+    setAssetDialogMode(mode);
+    setAssetDialogOpen(true);
+  };
+
+  const handleAssetSelection = (selectedAssets) => {
+    if (assetDialogMode === 'video') {
+      const selectedAsset = selectedAssets[0];
+      if (!selectedAsset?.url) return;
+      setForm((current) => ({
+        ...current,
+        activity_type: 'video',
+        video_url: selectedAsset.url,
+      }));
+      return;
+    }
+
+    const incomingResources = selectedAssets.map((asset) => ({
+      url: asset.url,
+      filename: asset.original_filename || asset.filename || deriveFilenameFromUrl(asset.url),
+      content_type: asset.content_type || null,
+    }));
+
+    setForm((current) => {
+      const resources = mergeResources(current.resources, incomingResources);
+      const isVideoActivity = current.activity_type === 'video';
+      return {
+        ...current,
+        activity_type: isVideoActivity ? 'video' : 'ficha',
+        file_url: resources[0]?.url || '',
+        resources,
+      };
+    });
+  };
+
   const handleSave = async () => {
+    const normalizedResources = normalizeResources(form.resources);
     if (!form.title.trim() || !form.subject_id || !form.month_id || !form.week_number) {
       setError('Titulo, materia, mes y semana son obligatorios.');
       return;
     }
-    if (form.activity_type === 'ficha' && !form.file_url.trim()) {
-      setError('La ficha requiere archivo.');
+    if (form.activity_type === 'ficha' && normalizedResources.length === 0) {
+      setError('El archivo o recurso requiere al menos un adjunto.');
       return;
     }
     if (form.activity_type === 'video' && !form.video_url.trim()) {
@@ -235,6 +403,10 @@ const ManageActivities = () => {
     }
     if (form.learning_format !== 'material' && !form.instructions.trim() && !form.description.trim()) {
       setError('La tarea o examen debe tener indicaciones.');
+      return;
+    }
+    if (isDocente && !form.group_id) {
+      setError('Debes seleccionar una seccion para publicar esta actividad.');
       return;
     }
 
@@ -249,8 +421,10 @@ const ManageActivities = () => {
         activity_type: form.activity_type,
         learning_format: form.learning_format,
         week_id: weekId,
-        file_url: form.activity_type === 'ficha' ? form.file_url.trim() : null,
+        group_id: form.group_id ? Number(form.group_id) : null,
+        file_url: normalizedResources[0]?.url || null,
         video_url: form.activity_type === 'video' ? form.video_url.trim() : null,
+        resources: normalizedResources,
         max_score: form.learning_format === 'material' || form.max_score === '' ? null : Number(form.max_score),
         due_at: form.learning_format === 'material' || !form.due_at ? null : new Date(form.due_at).toISOString(),
       };
@@ -375,6 +549,7 @@ const ManageActivities = () => {
                 <TableCell sx={{ fontWeight: 700 }}>Titulo</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Formato</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Materia</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Seccion</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Semana</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Entregas</TableCell>
                 <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Acciones</TableCell>
@@ -383,7 +558,7 @@ const ManageActivities = () => {
             <TableBody>
               {filteredActivities.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} sx={{ textAlign: 'center', py: 4 }}>
+                  <TableCell colSpan={7} sx={{ textAlign: 'center', py: 4 }}>
                     No hay actividades registradas.
                   </TableCell>
                 </TableRow>
@@ -393,12 +568,19 @@ const ManageActivities = () => {
                   const subject = week ? subjectsById[week.subject_id] : null;
                   const month = week ? monthsById[week.month_id] : null;
                   const isEvaluation = activity.learning_format !== 'material';
+                  const resourceCount = getActivityResources(activity).length;
                   return (
                     <TableRow key={activity.id}>
                       <TableCell>
                         <Typography fontWeight={700}>{activity.title}</Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {activity.activity_type === 'video' ? 'Video' : 'Ficha'}
+                          {activity.activity_type === 'video'
+                            ? resourceCount > 0
+                              ? `Video + ${resourceCount} recurso${resourceCount === 1 ? '' : 's'}`
+                              : 'Video'
+                            : resourceCount > 0
+                            ? `${resourceCount} recurso${resourceCount === 1 ? '' : 's'}`
+                            : 'Recurso'}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -406,6 +588,7 @@ const ManageActivities = () => {
                         {activity.max_score ? <Chip size="small" label={`Nota ${activity.max_score}`} sx={{ ml: 0.5 }} /> : null}
                       </TableCell>
                       <TableCell>{subject?.name || 'Sin materia'}</TableCell>
+                      <TableCell>{activity.group_name || (activity.group_id ? `Seccion ${activity.group_id}` : 'Todo el grado')}</TableCell>
                       <TableCell>{month?.name || 'Sin mes'}{week ? ` · Semana ${week.number}` : ''}</TableCell>
                       <TableCell>{isEvaluation ? `${activity.submission_count || 0} entregas` : 'No aplica'}</TableCell>
                       <TableCell sx={{ textAlign: 'center' }}>
@@ -459,8 +642,22 @@ const ManageActivities = () => {
             <Grid item xs={12} sm={3}>
               <FormControl fullWidth>
                 <InputLabel>Tipo</InputLabel>
-                <Select value={form.activity_type} label="Tipo" onChange={(event) => setForm({ ...form, activity_type: event.target.value, file_url: event.target.value === 'ficha' ? form.file_url : '', video_url: event.target.value === 'video' ? form.video_url : '' })}>
-                  <MenuItem value="ficha">Ficha</MenuItem>
+                <Select
+                  value={form.activity_type}
+                  label="Tipo"
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      activity_type: event.target.value,
+                      file_url:
+                        event.target.value === 'ficha'
+                          ? current.resources[0]?.url || current.file_url
+                          : current.file_url,
+                      video_url: event.target.value === 'video' ? current.video_url : '',
+                    }))
+                  }
+                >
+                  <MenuItem value="ficha">Archivo / recurso</MenuItem>
                   <MenuItem value="video">Video</MenuItem>
                 </Select>
               </FormControl>
@@ -470,6 +667,15 @@ const ManageActivities = () => {
                 <InputLabel>Materia</InputLabel>
                 <Select value={form.subject_id} label="Materia" onChange={(event) => setForm({ ...form, subject_id: event.target.value })}>
                   {subjects.map((subject) => <MenuItem key={subject.id} value={subject.id}>{subject.name}</MenuItem>)}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <FormControl fullWidth disabled={!form.subject_id}>
+                <InputLabel>Seccion</InputLabel>
+                <Select value={form.group_id} label="Seccion" onChange={(event) => setForm({ ...form, group_id: event.target.value })}>
+                  {!isDocente && <MenuItem value="">Todo el grado</MenuItem>}
+                  {availableGroups.map((group) => <MenuItem key={group.id} value={group.id}>{group.name}</MenuItem>)}
                 </Select>
               </FormControl>
             </Grid>
@@ -504,19 +710,147 @@ const ManageActivities = () => {
             {form.activity_type === 'ficha' ? (
               <>
                 <Grid item xs={12}>
-                  <TextField fullWidth label="Archivo" value={form.file_url} onChange={(event) => setForm({ ...form, file_url: event.target.value })} />
+                  <TextField
+                    fullWidth
+                    label="Pegar enlace de recurso"
+                    value={form.resource_url_input}
+                    onChange={(event) => setForm({ ...form, resource_url_input: event.target.value })}
+                  />
                 </Grid>
                 <Grid item xs={12}>
-                  <Button component="label" variant="outlined" startIcon={<CloudUpload />} disabled={uploading}>
-                    {uploading ? 'Subiendo...' : 'Subir archivo'}
-                    <input type="file" hidden onChange={handleUpload} />
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Button variant="outlined" startIcon={<Add />} onClick={handleAddResourceUrl}>
+                      Agregar enlace
+                    </Button>
+                    <Button variant="outlined" startIcon={<FolderOpen />} onClick={() => openAssetDialog('resources')}>
+                      Biblioteca de archivos
+                    </Button>
+                    <Button component="label" variant="outlined" startIcon={<CloudUpload />} disabled={uploading}>
+                      {uploading ? 'Subiendo...' : 'Subir archivo o recurso'}
+                      <input type="file" hidden multiple onChange={handleUpload} />
+                    </Button>
+                  </Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                    Admite fichas, PDF, imagenes, laminas y otros recursos. Puedes adjuntar varios.
+                  </Typography>
+                </Grid>
+                <Grid item xs={12}>
+                  {form.resources.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      Aun no hay recursos adjuntos.
+                    </Typography>
+                  ) : (
+                    <List dense>
+                      {form.resources.map((resource, index) => (
+                        <ListItem
+                          key={`${resource.url}-${index}`}
+                          divider
+                          secondaryAction={
+                            <IconButton edge="end" color="error" onClick={() => handleRemoveResource(resource.url)}>
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          }
+                        >
+                          <ListItemText
+                            primary={getResourceLabel(resource, index)}
+                            secondary={resource.url}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  )}
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="URL principal heredada"
+                    value={form.file_url}
+                    InputProps={{ readOnly: true }}
+                    helperText="Se mantiene por compatibilidad con actividades antiguas."
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                    El estudiante vera todos los recursos adjuntos dentro de la misma actividad.
+                  </Typography>
                 </Grid>
               </>
             ) : (
-              <Grid item xs={12}>
-                <TextField fullWidth label="URL del video" value={form.video_url} onChange={(event) => setForm({ ...form, video_url: event.target.value })} />
-              </Grid>
+              <>
+                <Grid item xs={12}>
+                  <TextField fullWidth label="URL del video" value={form.video_url} onChange={(event) => setForm({ ...form, video_url: event.target.value })} />
+                </Grid>
+                <Grid item xs={12}>
+                  <Button variant="outlined" startIcon={<FolderOpen />} onClick={() => openAssetDialog('video')}>
+                    Biblioteca de videos
+                  </Button>
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" fontWeight={700}>
+                    Recursos para descargar
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                    Opcional. Aqui puedes adjuntar PDF, fichas, imagenes y otros archivos para acompanar el video.
+                  </Typography>
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Pegar enlace de recurso"
+                    value={form.resource_url_input}
+                    onChange={(event) => setForm({ ...form, resource_url_input: event.target.value })}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Button variant="outlined" startIcon={<Add />} onClick={handleAddResourceUrl}>
+                      Agregar enlace
+                    </Button>
+                    <Button variant="outlined" startIcon={<FolderOpen />} onClick={() => openAssetDialog('resources')}>
+                      Biblioteca de archivos
+                    </Button>
+                    <Button component="label" variant="outlined" startIcon={<CloudUpload />} disabled={uploading}>
+                      {uploading ? 'Subiendo...' : 'Subir PDF o recurso'}
+                      <input type="file" hidden multiple onChange={handleUpload} />
+                    </Button>
+                  </Box>
+                </Grid>
+                <Grid item xs={12}>
+                  {form.resources.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      Aun no hay recursos descargables adjuntos.
+                    </Typography>
+                  ) : (
+                    <List dense>
+                      {form.resources.map((resource, index) => (
+                        <ListItem
+                          key={`${resource.url}-${index}`}
+                          divider
+                          secondaryAction={
+                            <IconButton edge="end" color="error" onClick={() => handleRemoveResource(resource.url)}>
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          }
+                        >
+                          <ListItemText
+                            primary={getResourceLabel(resource, index)}
+                            secondary={resource.url}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  )}
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="URL principal heredada de descarga"
+                    value={form.file_url}
+                    InputProps={{ readOnly: true }}
+                    helperText="Se usa para compatibilidad y apunta al primer recurso descargable."
+                  />
+                </Grid>
+              </>
             )}
           </Grid>
         </DialogContent>
@@ -586,6 +920,32 @@ const ManageActivities = () => {
           <Button variant="contained" onClick={saveGrade} disabled={saving}>Guardar revision</Button>
         </DialogActions>
       </Dialog>
+
+      <AssetLibraryDialog
+        open={assetDialogOpen}
+        onClose={() => setAssetDialogOpen(false)}
+        onSelect={handleAssetSelection}
+        title={assetDialogMode === 'video' ? 'Biblioteca de videos' : 'Biblioteca de archivos para actividades'}
+        category="activities"
+        multiple={assetDialogMode !== 'video'}
+        selectedAssets={
+          assetDialogMode === 'video'
+            ? (form.video_url
+              ? [{
+                  url: form.video_url,
+                  original_filename: deriveFilenameFromUrl(form.video_url),
+                  media_kind: 'video',
+                }]
+              : [])
+            : form.resources
+        }
+        allowedMediaKinds={assetDialogMode === 'video' ? ['video'] : ['all']}
+        helperText={
+          assetDialogMode === 'video'
+            ? 'Admin ve todos los videos. El docente solo ve los videos que subio.'
+            : 'Admin ve todos los archivos. El docente solo ve los archivos que subio.'
+        }
+      />
 
       <Footer />
     </Box>

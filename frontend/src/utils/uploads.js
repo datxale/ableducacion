@@ -13,3 +13,8 @@ export const uploadFile = async (file, category = 'general') => {
 
   return response.data;
 };
+
+export const listUploadedAssets = async (params = {}) => {
+  const response = await axiosInstance.get('/uploads/assets', { params });
+  return response.data || [];
+};

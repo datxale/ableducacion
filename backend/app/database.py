@@ -26,7 +26,7 @@ def get_db():
 def create_tables():
     from app.models import (  # noqa: F401
         user, academic_group, chat_message, grade, subject, month, week,
-        activity, planning, live_class, enrollment, progress,
+        activity, activity_resource, uploaded_asset, planning, live_class, enrollment, progress,
         testimonial, activity_submission, notification, live_class_attendance,
         news, landing_page
     )
@@ -161,6 +161,22 @@ def apply_safe_schema_updates():
                 """
                 ALTER TABLE live_classes
                 ADD COLUMN IF NOT EXISTS week_number INTEGER
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                ALTER TABLE activities
+                ADD COLUMN IF NOT EXISTS group_id INTEGER
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                CREATE INDEX IF NOT EXISTS ix_activities_group_id
+                ON activities(group_id)
                 """
             )
         )

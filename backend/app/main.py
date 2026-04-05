@@ -7,7 +7,7 @@ import threading
 from typing import List
 
 from app.config import settings
-from app.database import create_tables, apply_safe_schema_updates
+from app.database import SessionLocal, create_tables, apply_safe_schema_updates
 from app.routers import (
     academic_groups,
     auth,
@@ -31,6 +31,8 @@ from app.routers import (
     landing_page,
 )
 from app.services.live_class_recordings import start_live_class_recording_sync_loop
+from app.services.academic_calendar import ensure_default_academic_calendar
+from app.services.uploaded_assets import sync_existing_uploaded_assets
 
 logging.basicConfig(
     level=logging.INFO,
@@ -107,6 +109,20 @@ async def startup_event():
     try:
         create_tables()
         apply_safe_schema_updates()
+        db = SessionLocal()
+        try:
+            created_months, created_weeks = ensure_default_academic_calendar(db)
+            synced_assets = sync_existing_uploaded_assets(db)
+            db.commit()
+            if created_months or created_weeks:
+                logger.info(
+                    "Calendario academico por defecto verificado. Meses nuevos: %s, semanas nuevas: %s",
+                    created_months,
+                    created_weeks,
+                )
+            logger.info("Biblioteca de archivos sincronizada. Archivos revisados: %s", synced_assets)
+        finally:
+            db.close()
         logger.info("Tablas de base de datos verificadas/creadas correctamente")
         if settings.google_meet_enabled:
             stop_event = threading.Event()

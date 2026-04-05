@@ -24,14 +24,22 @@ class Activity(Base):
     file_url = Column(String(500), nullable=True)
     video_url = Column(String(500), nullable=True)
     week_id = Column(Integer, ForeignKey("weeks.id"), nullable=False)
+    group_id = Column(Integer, ForeignKey("academic_groups.id"), nullable=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
     # Relationships
     week = relationship("Week", back_populates="activities")
+    group = relationship("AcademicGroup")
     creator = relationship("User", back_populates="activities_created")
     progress_records = relationship("Progress", back_populates="activity")
+    resources = relationship(
+        "ActivityResource",
+        back_populates="activity",
+        cascade="all, delete-orphan",
+        order_by="ActivityResource.order_index",
+    )
     submissions = relationship("ActivitySubmission", back_populates="activity")
 
     def __repr__(self):

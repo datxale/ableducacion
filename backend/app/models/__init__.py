@@ -6,6 +6,8 @@ from app.models.subject import Subject
 from app.models.month import Month
 from app.models.week import Week
 from app.models.activity import Activity
+from app.models.activity_resource import ActivityResource
+from app.models.uploaded_asset import UploadedAsset
 from app.models.planning import Planning
 from app.models.live_class import LiveClass
 from app.models.live_class_attendance import LiveClassAttendance
@@ -24,6 +26,8 @@ __all__ = [
     "Month",
     "Week",
     "Activity",
+    "ActivityResource",
+    "UploadedAsset",
     "Planning",
     "LiveClass",
     "LiveClassAttendance",

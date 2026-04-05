@@ -21,6 +21,9 @@ import {
   InputLabel,
   LinearProgress,
   Link,
+  List,
+  ListItem,
+  ListItemText,
   MenuItem,
   Paper,
   Select,
@@ -57,6 +60,7 @@ import {
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import axiosInstance from '../../api/axios';
+import AssetLibraryDialog from '../../components/common/AssetLibraryDialog';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Footer from '../../components/Layout/Footer';
 import { useAuth } from '../../context/AuthContext';
@@ -75,7 +79,7 @@ const MONTHS = [
 
 const CATEGORY_OPTIONS = [
   { value: 'all', label: 'Todas las categorias' },
-  { value: 'ficha', label: 'Fichas' },
+  { value: 'ficha', label: 'Archivos y recursos' },
   { value: 'video', label: 'Videos' },
   { value: 'material', label: 'Materiales' },
   { value: 'tarea', label: 'Tareas' },
@@ -90,6 +94,8 @@ const emptyContentForm = {
   learning_format: 'material',
   file_url: '',
   video_url: '',
+  resource_url_input: '',
+  resources: [],
   max_score: '',
   due_at: '',
   content_kind: 'pdf',
@@ -123,10 +129,62 @@ const detectContentKind = (url) => {
   return 'file';
 };
 
-const resolveMediaUrl = (form) => form.video_url || form.file_url || '';
+const deriveFilenameFromUrl = (url) => {
+  if (!url) return '';
+  const cleanUrl = url.split('?')[0];
+  return cleanUrl.split('/').pop() || url;
+};
+
+const normalizeResources = (resources = []) =>
+  resources
+    .filter((resource) => resource?.url?.trim())
+    .reduce((accumulator, resource) => {
+      const url = resource.url.trim();
+      if (accumulator.some((item) => item.url === url)) {
+        return accumulator;
+      }
+
+      accumulator.push({
+        id: resource.id ?? null,
+        url,
+        filename: resource.filename || resource.original_filename || deriveFilenameFromUrl(url),
+        content_type: resource.content_type || null,
+        order_index: accumulator.length,
+      });
+      return accumulator;
+    }, []);
+
+const mergeResources = (currentResources = [], incomingResources = []) =>
+  normalizeResources([...currentResources, ...incomingResources]);
+
+const getActivityResources = (activity) => {
+  if (Array.isArray(activity?.resources) && activity.resources.length > 0) {
+    return normalizeResources(activity.resources);
+  }
+
+  if (activity?.file_url) {
+    return normalizeResources([
+      {
+        url: activity.file_url,
+        filename: deriveFilenameFromUrl(activity.file_url),
+        content_type: null,
+      },
+    ]);
+  }
+
+  return [];
+};
+
+const getPrimaryResourceUrl = (resources = []) => normalizeResources(resources)[0]?.url || '';
+
+const resolveMediaUrl = (form) =>
+  form.video_url || getPrimaryResourceUrl(form.resources) || form.file_url || '';
+
+const getResourceLabel = (resource, index) =>
+  resource.filename || deriveFilenameFromUrl(resource.url) || `Recurso ${index + 1}`;
 
 const typeChipOptions = [
-  { value: 'pdf', label: 'Ficha / PDF', icon: <PictureAsPdf fontSize="small" />, color: '#e53935' },
+  { value: 'pdf', label: 'Archivo / PDF', icon: <PictureAsPdf fontSize="small" />, color: '#e53935' },
   { value: 'youtube', label: 'YouTube', icon: <YouTube fontSize="small" />, color: '#ff0000' },
   { value: 'video', label: 'Video / MP4', icon: <Movie fontSize="small" />, color: '#1976d2' },
   { value: 'image', label: 'Imagen', icon: <ImageIcon fontSize="small" />, color: '#43a047' },
@@ -279,6 +337,8 @@ const WeekPage = () => {
   const [activityToDelete, setActivityToDelete] = useState(null);
   const [submissionForm, setSubmissionForm] = useState({ response_text: '', attachment_url: '' });
   const [contentForm, setContentForm] = useState(emptyContentForm);
+  const [contentAssetDialogMode, setContentAssetDialogMode] = useState('resources');
+  const [contentAssetDialogOpen, setContentAssetDialogOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -309,7 +369,10 @@ const WeekPage = () => {
       }
 
       const activitiesRes = await axiosInstance.get('/activities/', {
-        params: { week_id: weekMatch.id },
+        params: {
+          week_id: weekMatch.id,
+          ...(activeGroupId ? { group_id: Number(activeGroupId) } : {}),
+        },
       });
 
       let nextProgressMap = {};
@@ -328,7 +391,7 @@ const WeekPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [isEstudiante, month, subjectId, user?.id, week]);
+  }, [activeGroupId, isEstudiante, month, subjectId, user?.id, week]);
 
   useEffect(() => {
     fetchData();
@@ -391,8 +454,7 @@ const WeekPage = () => {
     }));
   };
 
-  const handleOpenResource = async (activity) => {
-    const resourceUrl = activity.file_url || activity.video_url;
+  const handleOpenResource = async (activity, resourceUrl = activity.file_url || activity.video_url) => {
     if (resourceUrl) {
       window.open(resourceUrl, '_blank', 'noopener,noreferrer');
     }
@@ -500,7 +562,11 @@ const WeekPage = () => {
 
   const openEditDialog = (activity) => {
     setEditingActivity(activity);
-    const existingUrl = activity.file_url || activity.video_url || '';
+    const resources = getActivityResources(activity);
+    const primaryResourceUrl = getPrimaryResourceUrl(resources);
+    const existingUrl = activity.activity_type === 'video'
+      ? (activity.video_url || activity.file_url || '')
+      : primaryResourceUrl;
     const kind = detectContentKind(existingUrl);
     setContentForm({
       title: activity.title || '',
@@ -508,8 +574,10 @@ const WeekPage = () => {
       instructions: activity.instructions || '',
       activity_type: activity.activity_type || 'ficha',
       learning_format: activity.learning_format || 'material',
-      file_url: activity.file_url || '',
-      video_url: activity.video_url || '',
+      file_url: primaryResourceUrl,
+      video_url: activity.activity_type === 'video' ? existingUrl : '',
+      resource_url_input: '',
+      resources,
       max_score: activity.max_score ?? '',
       due_at: toDatetimeLocal(activity.due_at),
       content_kind: kind,
@@ -521,36 +589,76 @@ const WeekPage = () => {
   };
 
   const handleContentUpload = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
 
     setUploading(true);
     setUploadProgress(0);
-    setUploadedFilename(file.name);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('folder', 'activities');
+      if (contentForm.content_kind === 'video') {
+        const file = files[0];
+        setUploadedFilename(file.name);
 
-      const response = await axiosInstance.post('/uploads/', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (progressEvent) => {
-          if (progressEvent.total) {
-            setUploadProgress(Math.round((progressEvent.loaded * 100) / progressEvent.total));
-          }
-        },
-      });
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('category', 'activities');
 
-      const uploaded = response.data;
-      const detectedKind = detectContentKind(uploaded.url);
-      setContentForm((current) => ({
-        ...current,
-        file_url: uploaded.url,
-        video_url: '',
-        content_kind: detectedKind,
-        activity_type: detectedKind === 'youtube' || detectedKind === 'video' ? 'video' : 'ficha',
-      }));
+        const response = await axiosInstance.post('/uploads/', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              setUploadProgress(Math.round((progressEvent.loaded * 100) / progressEvent.total));
+            }
+          },
+        });
+
+        const uploaded = response.data;
+        setContentForm((current) => ({
+          ...current,
+          video_url: uploaded.url,
+          file_url: getPrimaryResourceUrl(current.resources),
+          activity_type: 'video',
+          content_kind: 'video',
+        }));
+      } else {
+        const uploadedResources = [];
+
+        for (const file of files) {
+          setUploadedFilename(file.name);
+
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('category', 'activities');
+
+          const response = await axiosInstance.post('/uploads/', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress: (progressEvent) => {
+              if (progressEvent.total) {
+                setUploadProgress(Math.round((progressEvent.loaded * 100) / progressEvent.total));
+              }
+            },
+          });
+
+          const uploaded = response.data;
+          uploadedResources.push({
+            url: uploaded.url,
+            filename: uploaded.filename || file.name,
+            content_type: uploaded.content_type || file.type || null,
+          });
+        }
+
+        setContentForm((current) => {
+          const resources = mergeResources(current.resources, uploadedResources);
+          return {
+            ...current,
+            file_url: getPrimaryResourceUrl(resources),
+            video_url: '',
+            resources,
+            activity_type: 'ficha',
+          };
+        });
+      }
     } catch (err) {
       setError(err.response?.data?.detail || 'No se pudo subir el archivo.');
       setUploadedFilename('');
@@ -560,12 +668,151 @@ const WeekPage = () => {
     }
   };
 
+  const handleSupplementalResourceUpload = async (event) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const uploadedResources = [];
+
+      for (const file of files) {
+        setUploadedFilename(file.name);
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('category', 'activities');
+
+        const response = await axiosInstance.post('/uploads/', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              setUploadProgress(Math.round((progressEvent.loaded * 100) / progressEvent.total));
+            }
+          },
+        });
+
+        const uploaded = response.data;
+        uploadedResources.push({
+          url: uploaded.url,
+          filename: uploaded.filename || file.name,
+          content_type: uploaded.content_type || file.type || null,
+        });
+      }
+
+      setContentForm((current) => {
+        const resources = mergeResources(current.resources, uploadedResources);
+        return {
+          ...current,
+          file_url: getPrimaryResourceUrl(resources),
+          resources,
+        };
+      });
+    } catch (err) {
+      setError(err.response?.data?.detail || 'No se pudo subir el archivo.');
+      setUploadedFilename('');
+    } finally {
+      setUploading(false);
+      event.target.value = '';
+    }
+  };
+
+  const handleAddResourceUrl = () => {
+    const url = contentForm.resource_url_input.trim();
+    if (!url) return;
+
+    setContentForm((current) => {
+      const resources = mergeResources(current.resources, [
+        {
+          url,
+          filename: deriveFilenameFromUrl(url),
+          content_type: null,
+        },
+      ]);
+
+      return {
+        ...current,
+        file_url: getPrimaryResourceUrl(resources),
+        resource_url_input: '',
+        resources,
+      };
+    });
+  };
+
+  const handleRemoveResource = (resourceUrl) => {
+    setContentForm((current) => {
+      const resources = normalizeResources(
+        current.resources.filter((resource) => resource.url !== resourceUrl)
+      );
+
+      return {
+        ...current,
+        file_url: getPrimaryResourceUrl(resources),
+        resources,
+      };
+    });
+  };
+
+  const openContentAssetDialog = (mode) => {
+    setContentAssetDialogMode(mode);
+    setContentAssetDialogOpen(true);
+  };
+
+  const handleContentAssetSelection = (selectedAssets) => {
+    if (contentAssetDialogMode === 'video') {
+      const selectedAsset = selectedAssets[0];
+      if (!selectedAsset?.url) return;
+      setContentForm((current) => ({
+        ...current,
+        activity_type: 'video',
+        content_kind: 'video',
+        video_url: selectedAsset.url,
+        file_url: getPrimaryResourceUrl(current.resources),
+      }));
+      return;
+    }
+
+    const incomingResources = selectedAssets.map((asset) => ({
+      url: asset.url,
+      filename: asset.original_filename || asset.filename || deriveFilenameFromUrl(asset.url),
+      content_type: asset.content_type || null,
+    }));
+
+    setContentForm((current) => {
+      const resources = mergeResources(current.resources, incomingResources);
+      const isVideoFlow = current.content_kind === 'youtube' || current.content_kind === 'video';
+      const nextContentKind = resources.length === 1 ? detectContentKind(resources[0].url) : current.content_kind;
+      return {
+        ...current,
+        activity_type: isVideoFlow ? 'video' : 'ficha',
+        content_kind: isVideoFlow
+          ? current.content_kind
+          : (nextContentKind === 'youtube' || nextContentKind === 'video' ? 'pdf' : nextContentKind),
+        file_url: getPrimaryResourceUrl(resources),
+        video_url: isVideoFlow ? current.video_url : '',
+        resources,
+      };
+    });
+  };
+
   const requestConfirm = () => {
     setError('');
     if (!currentWeek) { setError('No se encontro la semana actual.'); return; }
     if (!contentForm.title.trim()) { setError('El titulo es obligatorio.'); return; }
+    const normalizedResources = normalizeResources(contentForm.resources);
+    const isYoutubeOrVideo =
+      contentForm.content_kind === 'youtube' || contentForm.content_kind === 'video';
     const contentUrl = resolveMediaUrl(contentForm);
-    if (!contentUrl.trim()) { setError('Debes agregar un archivo, URL o enlace de YouTube.'); return; }
+    if (isYoutubeOrVideo && !contentUrl.trim()) {
+      setError('Debes agregar un archivo, URL o enlace de YouTube.');
+      return;
+    }
+    if (!isYoutubeOrVideo && normalizedResources.length === 0) {
+      setError('Debes adjuntar al menos un archivo o recurso.');
+      return;
+    }
     if (
       contentForm.learning_format !== 'material' &&
       !contentForm.instructions.trim() &&
@@ -578,7 +825,7 @@ const WeekPage = () => {
     setSavingId(editingActivity?.id || 'new');
     setError('');
     const contentUrl = resolveMediaUrl(contentForm);
-
+    const normalizedResources = normalizeResources(contentForm.resources);
     const isYoutubeOrVideo = contentForm.content_kind === 'youtube' || contentForm.content_kind === 'video';
 
     try {
@@ -589,8 +836,10 @@ const WeekPage = () => {
         activity_type: isYoutubeOrVideo ? 'video' : 'ficha',
         learning_format: contentForm.learning_format,
         week_id: currentWeek.id,
-        file_url: isYoutubeOrVideo ? null : (contentForm.file_url.trim() || null),
+        group_id: activeGroupId ? Number(activeGroupId) : editingActivity?.group_id || null,
+        file_url: normalizedResources[0]?.url || null,
         video_url: isYoutubeOrVideo ? contentUrl.trim() : null,
+        resources: normalizedResources,
         max_score:
           contentForm.learning_format === 'material' || contentForm.max_score === ''
             ? null
@@ -642,7 +891,12 @@ const WeekPage = () => {
     return <LoadingSpinner message="Cargando actividades..." />;
   }
 
-  const currentMediaUrl = resolveMediaUrl(contentForm);
+  const currentResources = normalizeResources(contentForm.resources);
+  const isVideoContentKind =
+    contentForm.content_kind === 'youtube' || contentForm.content_kind === 'video';
+  const currentMediaUrl = isVideoContentKind
+    ? resolveMediaUrl(contentForm)
+    : getPrimaryResourceUrl(currentResources);
 
   return (
     <Box sx={{ background: '#f5f7fa', minHeight: '100vh' }}>
@@ -757,7 +1011,7 @@ const WeekPage = () => {
         <Grid container spacing={2} sx={{ mb: 3 }}>
           {[
             {
-              label: 'Fichas y materiales',
+              label: 'Archivos y materiales',
               value: summary.fichas,
               helper: `${summary.materiales} materiales de consulta`,
               icon: <AutoStories sx={{ color: '#1976d2' }} />,
@@ -824,7 +1078,7 @@ const WeekPage = () => {
         <Paper sx={{ p: 1, mb: 2, display: 'inline-flex', borderRadius: '18px' }}>
           <Tabs value={tabValue} onChange={(_, value) => setTabValue(value)}>
             <Tab label={`Todos (${activities.length})`} />
-            <Tab label={`Fichas (${summary.fichas})`} />
+            <Tab label={`Recursos (${summary.fichas})`} />
             <Tab label={`Videos (${summary.videos})`} />
             <Tab label={`Tareas / Examenes (${summary.tareas + summary.examenes})`} />
           </Tabs>
@@ -910,7 +1164,7 @@ const WeekPage = () => {
                   No hay contenido para esos filtros.
                 </Typography>
                 <Typography color="text.secondary" sx={{ mb: 2 }}>
-                  Ajusta la busqueda o publica fichas, videos, tareas y examenes en esta semana.
+                  Ajusta la busqueda o publica archivos, videos, tareas y examenes en esta semana.
                 </Typography>
                 {canManageContent && (
                   <Button variant="contained" startIcon={<Add />} onClick={openCreateDialog}>
@@ -926,6 +1180,12 @@ const WeekPage = () => {
               const submission = activity.my_submission;
               const activityDate = getActivityDate(activity);
               const canEditActivity = isAdmin || (isDocente && activity.created_by === user?.id);
+              const activityResources = getActivityResources(activity);
+              const activityVideoUrl = activity.video_url || (activity.activity_type === 'video' ? activity.file_url || '' : '');
+              const activityVideoKind = activityVideoUrl ? detectContentKind(activityVideoUrl) : null;
+              const downloadableResources = activity.activity_type === 'video'
+                ? activityResources.filter((resource) => resource.url !== activityVideoUrl)
+                : activityResources;
 
               return (
                 <Grid item xs={12} sm={6} lg={4} key={activity.id}>
@@ -942,7 +1202,7 @@ const WeekPage = () => {
                         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                           <Chip
                             size="small"
-                            label={activity.activity_type === 'video' ? 'Video' : 'Ficha'}
+                            label={activity.activity_type === 'video' ? 'Video' : 'Recurso'}
                           />
                           <Chip
                             size="small"
@@ -1027,14 +1287,38 @@ const WeekPage = () => {
                       )}
 
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        {(activity.file_url || activity.video_url) && (
-                          <Button
-                            variant="outlined"
-                            startIcon={activity.activity_type === 'video' ? <PlayCircle /> : <Download />}
-                            onClick={() => handleOpenResource(activity)}
-                          >
-                            Abrir recurso
-                          </Button>
+                        {activity.activity_type === 'video' && activityVideoUrl && (
+                          <>
+                            <Typography variant="caption" color="text.secondary">
+                              Vista previa del video
+                            </Typography>
+                            <ContentPreview url={activityVideoUrl} kind={activityVideoKind} />
+                            <Button
+                              variant="outlined"
+                              startIcon={<PlayCircle />}
+                              onClick={() => handleOpenResource(activity, activityVideoUrl)}
+                            >
+                              Abrir video
+                            </Button>
+                          </>
+                        )}
+
+                        {downloadableResources.length > 0 && (
+                          <>
+                            <Typography variant="caption" color="text.secondary">
+                              Recursos para descargar: {downloadableResources.length}
+                            </Typography>
+                            {downloadableResources.map((resource, index) => (
+                              <Button
+                                key={`${resource.id || resource.url}-${index}`}
+                                variant="outlined"
+                                startIcon={<Download />}
+                                onClick={() => handleOpenResource(activity, resource.url)}
+                              >
+                                {getResourceLabel(resource, index)}
+                              </Button>
+                            ))}
+                          </>
                         )}
 
                         {isEstudiante && !isEvaluation && (
@@ -1137,12 +1421,39 @@ const WeekPage = () => {
                   <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
                     Vista previa del contenido
                   </Typography>
-                  <ContentPreview
-                    url={contentForm.content_kind === 'youtube' ? contentForm.video_url : contentForm.file_url}
-                    kind={contentForm.content_kind}
-                  />
-                  {!contentForm.video_url && !contentForm.file_url && (
+                  {isVideoContentKind ? (
+                    <>
+                      {currentMediaUrl ? (
+                        <ContentPreview url={currentMediaUrl} kind={contentForm.content_kind} />
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">Sin contenido adjunto.</Typography>
+                      )}
+                      {currentResources.length > 0 && (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 2 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            Recursos para descargar
+                          </Typography>
+                          {currentResources.map((resource, index) => (
+                            <Typography key={`${resource.url}-${index}`} variant="body2">
+                              {getResourceLabel(resource, index)}
+                            </Typography>
+                          ))}
+                        </Box>
+                      )}
+                    </>
+                  ) : currentResources.length === 0 ? (
                     <Typography variant="body2" color="text.secondary">Sin contenido adjunto.</Typography>
+                  ) : (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {currentResources.map((resource, index) => (
+                        <Box key={`${resource.url}-${index}`}>
+                          <Typography variant="caption" color="text.secondary">
+                            {getResourceLabel(resource, index)}
+                          </Typography>
+                          <ContentPreview url={resource.url} kind={detectContentKind(resource.url)} />
+                        </Box>
+                      ))}
+                    </Box>
                   )}
                 </Grid>
               </Grid>
@@ -1260,8 +1571,11 @@ const WeekPage = () => {
                       setContentForm((current) => ({
                         ...current,
                         content_kind: opt.value,
-                        file_url: '',
-                        video_url: '',
+                        activity_type:
+                          opt.value === 'youtube' || opt.value === 'video' ? 'video' : 'ficha',
+                        file_url: getPrimaryResourceUrl(current.resources),
+                        video_url:
+                          opt.value === 'youtube' || opt.value === 'video' ? current.video_url : '',
                       }))
                     }
                     variant={contentForm.content_kind === opt.value ? 'filled' : 'outlined'}
@@ -1289,7 +1603,6 @@ const WeekPage = () => {
                     setContentForm((current) => ({
                       ...current,
                       video_url: val,
-                      file_url: '',
                     }));
                   }}
                   InputProps={{
@@ -1317,8 +1630,144 @@ const WeekPage = () => {
               </Grid>
             )}
 
-            {/* File upload for non-YouTube types */}
-            {contentForm.content_kind !== 'youtube' && (
+            {(contentForm.content_kind === 'youtube' || contentForm.content_kind === 'video') && (
+              <Grid item xs={12}>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    borderRadius: '18px',
+                    background: '#fafafa',
+                    borderColor: '#e0e0e0',
+                  }}
+                >
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                    Recursos para descargar
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                    Opcional. Adjunta PDF, fichas, imagenes u otros archivos para acompanar el video.
+                  </Typography>
+
+                  <Box
+                    sx={{
+                      border: '2px dashed #bdbdbd',
+                      borderRadius: 2,
+                      p: 3,
+                      textAlign: 'center',
+                      background: '#fff',
+                    }}
+                  >
+                    {uploading ? (
+                      <Box>
+                        <CircularProgress size={32} sx={{ mb: 1 }} />
+                        <Typography variant="body2" color="text.secondary">
+                          Subiendo {uploadedFilename}...
+                        </Typography>
+                        <LinearProgress
+                          variant="determinate"
+                          value={uploadProgress}
+                          sx={{ mt: 1, borderRadius: 1 }}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          {uploadProgress}%
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <Box>
+                        <CloudUpload sx={{ fontSize: 40, color: '#bdbdbd', mb: 1 }} />
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                          {currentResources.length > 0
+                            ? `${currentResources.length} recurso${currentResources.length === 1 ? '' : 's'} agregado${currentResources.length === 1 ? '' : 's'}`
+                            : 'Arrastra uno o varios archivos o haz clic para seleccionar'}
+                        </Typography>
+                        <Button
+                          component="label"
+                          variant="outlined"
+                          startIcon={<CloudUpload />}
+                          size="small"
+                        >
+                          {currentResources.length > 0 ? 'Agregar mas archivos' : 'Seleccionar archivos'}
+                          <input
+                            type="file"
+                            hidden
+                            multiple
+                            accept="*"
+                            onChange={handleSupplementalResourceUpload}
+                          />
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          startIcon={<FolderOpen />}
+                          size="small"
+                          sx={{ ml: 1 }}
+                          onClick={() => openContentAssetDialog('resources')}
+                        >
+                          Biblioteca
+                        </Button>
+                      </Box>
+                    )}
+                  </Box>
+
+                  <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexWrap: 'wrap' }}>
+                    <TextField
+                      fullWidth
+                      label="Pegar enlace de recurso"
+                      placeholder="https://..."
+                      value={contentForm.resource_url_input}
+                      onChange={(event) =>
+                        setContentForm((current) => ({
+                          ...current,
+                          resource_url_input: event.target.value,
+                        }))
+                      }
+                      size="small"
+                    />
+                    <Button variant="outlined" startIcon={<Add />} onClick={handleAddResourceUrl}>
+                      Agregar enlace
+                    </Button>
+                  </Box>
+
+                  {currentResources.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                      Aun no hay recursos descargables adjuntos.
+                    </Typography>
+                  ) : (
+                    <List dense sx={{ mt: 1.5 }}>
+                      {currentResources.map((resource, index) => (
+                        <ListItem
+                          key={`${resource.url}-${index}`}
+                          divider
+                          secondaryAction={
+                            <Box sx={{ display: 'flex', gap: 0.5 }}>
+                              <IconButton
+                                size="small"
+                                onClick={() => window.open(resource.url, '_blank', 'noopener,noreferrer')}
+                              >
+                                <OpenInNew fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => handleRemoveResource(resource.url)}
+                              >
+                                <Delete fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          }
+                        >
+                          <ListItemText
+                            primary={getResourceLabel(resource, index)}
+                            secondary={resource.url}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  )}
+                </Paper>
+              </Grid>
+            )}
+
+            {contentForm.content_kind === 'video' && (
               <Grid item xs={12}>
                 <Box
                   sx={{
@@ -1349,7 +1798,7 @@ const WeekPage = () => {
                       <CloudUpload sx={{ fontSize: 40, color: '#bdbdbd', mb: 1 }} />
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                         {currentMediaUrl
-                          ? `Archivo: ${currentMediaUrl.split('/').pop()}`
+                          ? `Video: ${deriveFilenameFromUrl(currentMediaUrl)}`
                           : 'Arrastra un archivo o haz clic para seleccionar'}
                       </Typography>
                       <Button
@@ -1358,13 +1807,22 @@ const WeekPage = () => {
                         startIcon={<CloudUpload />}
                         size="small"
                       >
-                        {currentMediaUrl ? 'Reemplazar archivo' : 'Seleccionar archivo'}
+                        {currentMediaUrl ? 'Reemplazar video' : 'Seleccionar video'}
                         <input
                           type="file"
                           hidden
-                          accept={fileTypeAcceptMap[contentForm.content_kind] || '*'}
+                          accept={fileTypeAcceptMap.video}
                           onChange={handleContentUpload}
                         />
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        startIcon={<FolderOpen />}
+                        size="small"
+                        sx={{ ml: 1 }}
+                        onClick={() => openContentAssetDialog('video')}
+                      >
+                        Biblioteca
                       </Button>
                       {currentMediaUrl && (
                         <Tooltip title="Abrir en nueva pestana">
@@ -1383,17 +1841,15 @@ const WeekPage = () => {
                   )}
                 </Box>
 
-                {/* Manual URL fallback */}
                 <TextField
                   fullWidth
-                  label="O pega un enlace directo"
+                  label="O pega una URL directa del video"
                   placeholder="https://..."
-                  value={contentForm.file_url}
+                  value={contentForm.video_url}
                   onChange={(event) =>
                     setContentForm((current) => ({
                       ...current,
-                      file_url: event.target.value,
-                      video_url: '',
+                      video_url: event.target.value,
                     }))
                   }
                   sx={{ mt: 1.5 }}
@@ -1402,16 +1858,132 @@ const WeekPage = () => {
               </Grid>
             )}
 
-            {/* Content preview */}
+            {contentForm.content_kind !== 'youtube' && contentForm.content_kind !== 'video' && (
+              <Grid item xs={12}>
+                <Box
+                  sx={{
+                    border: '2px dashed #bdbdbd',
+                    borderRadius: 2,
+                    p: 3,
+                    textAlign: 'center',
+                    background: '#fafafa',
+                  }}
+                >
+                  {uploading ? (
+                    <Box>
+                      <CircularProgress size={32} sx={{ mb: 1 }} />
+                      <Typography variant="body2" color="text.secondary">
+                        Subiendo {uploadedFilename}...
+                      </Typography>
+                      <LinearProgress
+                        variant="determinate"
+                        value={uploadProgress}
+                        sx={{ mt: 1, borderRadius: 1 }}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        {uploadProgress}%
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Box>
+                      <CloudUpload sx={{ fontSize: 40, color: '#bdbdbd', mb: 1 }} />
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        {currentResources.length > 0
+                          ? `${currentResources.length} recurso${currentResources.length === 1 ? '' : 's'} agregado${currentResources.length === 1 ? '' : 's'}`
+                          : 'Arrastra uno o varios archivos o haz clic para seleccionar'}
+                      </Typography>
+                      <Button
+                        component="label"
+                        variant="outlined"
+                        startIcon={<CloudUpload />}
+                        size="small"
+                      >
+                        {currentResources.length > 0 ? 'Agregar mas archivos' : 'Seleccionar archivos'}
+                        <input
+                          type="file"
+                          hidden
+                          multiple
+                          accept={fileTypeAcceptMap[contentForm.content_kind] || '*'}
+                          onChange={handleContentUpload}
+                        />
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        startIcon={<FolderOpen />}
+                        size="small"
+                        sx={{ ml: 1 }}
+                        onClick={() => openContentAssetDialog('resources')}
+                      >
+                        Biblioteca
+                      </Button>
+                    </Box>
+                  )}
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexWrap: 'wrap' }}>
+                  <TextField
+                    fullWidth
+                    label="Pegar enlace de recurso"
+                    placeholder="https://..."
+                    value={contentForm.resource_url_input}
+                    onChange={(event) =>
+                      setContentForm((current) => ({
+                        ...current,
+                        resource_url_input: event.target.value,
+                      }))
+                    }
+                    size="small"
+                  />
+                  <Button variant="outlined" startIcon={<Add />} onClick={handleAddResourceUrl}>
+                    Agregar enlace
+                  </Button>
+                </Box>
+
+                {currentResources.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                    Aun no hay recursos adjuntos.
+                  </Typography>
+                ) : (
+                  <List dense sx={{ mt: 1.5 }}>
+                    {currentResources.map((resource, index) => (
+                      <ListItem
+                        key={`${resource.url}-${index}`}
+                        divider
+                        secondaryAction={
+                          <Box sx={{ display: 'flex', gap: 0.5 }}>
+                            <IconButton
+                              size="small"
+                              onClick={() => window.open(resource.url, '_blank', 'noopener,noreferrer')}
+                            >
+                              <OpenInNew fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => handleRemoveResource(resource.url)}
+                            >
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        }
+                      >
+                        <ListItemText
+                          primary={getResourceLabel(resource, index)}
+                          secondary={resource.url}
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
+              </Grid>
+            )}
+
             {currentMediaUrl && (
               <Grid item xs={12}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
                   Vista previa
                 </Typography>
-                <ContentPreview
-                  url={contentForm.content_kind === 'youtube' ? contentForm.video_url : contentForm.file_url}
-                  kind={contentForm.content_kind}
-                />
+                <ContentPreview url={currentMediaUrl} kind={contentForm.content_kind} />
               </Grid>
             )}
           </Grid>
@@ -1516,6 +2088,32 @@ const WeekPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <AssetLibraryDialog
+        open={contentAssetDialogOpen}
+        onClose={() => setContentAssetDialogOpen(false)}
+        onSelect={handleContentAssetSelection}
+        title={contentAssetDialogMode === 'video' ? 'Biblioteca de videos' : 'Biblioteca de recursos de la semana'}
+        category="activities"
+        multiple={contentAssetDialogMode !== 'video'}
+        selectedAssets={
+          contentAssetDialogMode === 'video'
+            ? (currentMediaUrl
+              ? [{
+                  url: currentMediaUrl,
+                  original_filename: deriveFilenameFromUrl(currentMediaUrl),
+                  media_kind: 'video',
+                }]
+              : [])
+            : currentResources
+        }
+        allowedMediaKinds={contentAssetDialogMode === 'video' ? ['video'] : ['all']}
+        helperText={
+          contentAssetDialogMode === 'video'
+            ? 'Admin ve todos los videos. El docente solo ve los videos que subio.'
+            : 'Admin ve todos los archivos. El docente solo ve los archivos que subio.'
+        }
+      />
 
       <Footer />
     </Box>

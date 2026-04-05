@@ -51,6 +51,7 @@ class User(Base):
     )
     attendance_records = relationship("LiveClassAttendance", back_populates="student")
     notifications = relationship("Notification", back_populates="user")
+    uploaded_assets = relationship("UploadedAsset", back_populates="owner")
     messages_sent = relationship(
         "ChatMessage",
         foreign_keys="ChatMessage.sender_id",
